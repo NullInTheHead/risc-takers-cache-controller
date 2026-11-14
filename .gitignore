@@ -1,0 +1,6 @@
+build/
+tb/waves/
+*.vcd
+*.aux
+*.log
+*.out
