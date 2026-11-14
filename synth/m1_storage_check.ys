@@ -1,0 +1,13 @@
+# Yosys sanity synthesis of Member-1 modules (generic gates; real FPGA numbers come from M5)
+read_verilog rtl/address_decoder.v rtl/data_ram.v rtl/tag_ram.v rtl/valid_ram.v
+hierarchy -check
+synth -top data_ram
+stat
+design -reset
+read_verilog rtl/address_decoder.v rtl/data_ram.v rtl/tag_ram.v rtl/valid_ram.v
+synth -top tag_ram
+stat
+design -reset
+read_verilog rtl/address_decoder.v rtl/data_ram.v rtl/tag_ram.v rtl/valid_ram.v
+synth -top valid_ram
+stat
