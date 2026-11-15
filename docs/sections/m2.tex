@@ -1,0 +1,219 @@
+% =====================================================================
+% m2.tex -- Member 2 (Controller FSM & Tag Comparator) report sections
+%   * Literature Review, subsection B (Cache Controller Design & FSM Architectures)
+%   * Proposed Solution, subsection B (Controller FSM & Tag Comparator)
+%
+% For M5: \input{sections/m2} into the IEEEtran report.
+% Figure path assumes the report lives in docs/.
+% Citation keys used: smith1982, hennessy2017, hill1989, patterson2020
+% (bibitems provided at the bottom of this file).
+% =====================================================================
+
+
+% ---------------------- BEGIN LITERATURE REVIEW B ---------------------
+\subsection{Cache Controller Design and FSM Architectures}
+\label{sec:litrev-m2}
+
+The cache controller is the coordinating heart of the cache sub-system.
+While the storage arrays (data, tag, and valid-bit RAMs) form the data
+path, the controller orchestrates access sequencing, hit/miss detection,
+CPU stall generation, and line refills~\cite{smith1982,hennessy2017}.
+Classical cache controller design balances two competing objectives:
+minimising the hit latency (which directly dictates the primary clock
+cycle or pipeline stall penalty) and managing the multi-cycle latency of
+main-memory transactions without corrupting architectural state.
+
+In early microprocessor caches and classical single-issue architectures,
+controllers were implemented as synchronous finite state machines
+(FSMs)~\cite{smith1982}. Smith observed that cache control complexity
+is strongly dictated by the write policy and allocation strategy.
+A \emph{write-through} cache with \emph{no-write-allocate} policy
+simplifies controller design dramatically: on a write hit, the updated
+word is written into the cache line while simultaneously being forwarded
+to memory; on a write miss, the cache remains untouched, and the write
+is dispatched directly to main memory. Consequently, a write-through
+controller requires no dirty bits and no block eviction (write-back)
+states prior to allocating a new line. Conversely, a \emph{write-back}
+controller requires tracking dirty status per block and executing a
+two-phase memory handshake on misses that replace dirty lines (write-back
+followed by refill)~\cite{hennessy2017}.
+
+Hennessy and Patterson~\cite{hennessy2017,patterson2020} divide the
+controller's operational cycle into distinct phases: address decoding, tag
+comparison, response signaling, and refill allocation. A central design
+decision is whether tag comparison occurs combinationally within the
+request cycle or across discrete pipeline registers. In a direct-mapped
+architecture, because each address maps to exactly one line, the index
+can be presented to asynchronous-read RAMs immediately, allowing the tag
+and valid bit to be compared combinationally in the same cycle. This
+enables a single-cycle hit latency ($t_{\mathrm{hit}} = 1\text{ cycle}$),
+which is foundational to achieving low Average Memory Access Time (AMAT):
+\begin{equation}
+\mathrm{AMAT} = t_{\mathrm{hit}} + (1 - h) \cdot t_{\mathrm{miss\_penalty}},
+\label{eq:amat-m2}
+\end{equation}
+where $h$ is the hit rate. Any additional state transition introduced on
+the critical hit path adds a mandatory cycle penalty to every load and
+store, degrading overall processor throughput.
+
+When a miss occurs, the controller must assert a stall signal to the CPU
+pipeline, hold the request address and write data stable, and initiate a
+refill sequence with the memory interface~\cite{hill1989}. The controller
+FSM must therefore support a robust request/acknowledge handshake with
+variable-latency DRAM controllers, transitioning through allocate, refill,
+and update states before de-asserting the stall condition.
+% ----------------------- END LITERATURE REVIEW B ----------------------
+
+
+% ---------------------- BEGIN PROPOSED SOLUTION B ---------------------
+\subsection{Controller Finite State Machine and Tag Comparator}
+\label{sec:solution-m2}
+
+Member 2 is responsible for the control path of the direct-mapped cache,
+consisting of two modular Register-Transfer-Level (RTL) components:
+the parameterised \texttt{tag\_comparator} and the \texttt{cache\_controller\_fsm}.
+
+\subsubsection{Tag Comparator Architecture (\texttt{tag\_comparator.v})}
+The tag comparator performs high-speed, purely combinational equality
+checking between the tag stored in the cache line and the tag field of
+the incoming CPU byte address. To prevent false hits on stale data after
+power-on, reset, or line flushes, the comparator output is strictly gated
+by the valid bit stored in \texttt{valid\_ram}:
+\begin{equation}
+\mathrm{hit} = \mathrm{rvalid} \;\land\; (\mathrm{rtag} == \mathrm{tag}).
+\label{eq:hit-logic}
+\end{equation}
+In the default configuration, \texttt{tag} and \texttt{rtag} are 22 bits
+wide ($32 - 6 - 4$). If $\mathrm{rvalid} = 0$, $\mathrm{hit}$ is driven to
+$0$ immediately, guaranteeing that the first access to an uninitialised
+line generates a compulsory (cold) miss even if the uninitialised tag bits
+happen to match. The module is fully parameterised using the shared team
+parameters (\texttt{ADDR\_WIDTH}, \texttt{CACHE\_SIZE}, \texttt{BLOCK\_SIZE}),
+automatically re-deriving the comparator bit-width when sweeping cache
+geometries during Phase~II.
+
+\subsubsection{Controller FSM Architecture (\texttt{cache\_controller\_fsm.v})}
+The cache controller FSM manages the access sequence and memory
+handshakes according to a write-through, no-write-allocate policy.
+Figure~\ref{fig:fsm_diagram} illustrates the state transition diagram,
+and Table~\ref{tab:fsm_transitions} details the complete state-transition
+and output control matrix.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fsm_diagram.pdf}
+\caption{State transition diagram of the Cache Controller FSM (Member 2).
+Fast-path hits complete in a single cycle directly from \texttt{IDLE}. Read
+misses traverse \texttt{COMPARE\_TAG} $\rightarrow$ \texttt{ALLOCATE} $\rightarrow$
+\texttt{UPDATE} $\rightarrow$ \texttt{RESPOND}. Write misses skip \texttt{UPDATE}
+under no-write-allocate policy.}
+\label{fig:fsm_diagram}
+\end{figure}
+
+The FSM comprises five architecturally defined states:
+\begin{enumerate}
+    \item \textbf{IDLE (\texttt{3'b000})}: The resting state. When no access
+          is requested ($\texttt{cpu\_req} = 0$), all write enables and
+          memory requests remain de-asserted. When $\texttt{cpu\_req} = 1$
+          and $\mathrm{hit} = 1$, the combinational fast-path asserts
+          $\texttt{cpu\_ready} = 1$ in the same clock cycle, enabling
+          single-cycle reads and single-cycle write-throughs without entering
+          multi-cycle stall states.
+    \item \textbf{COMPARE\_TAG (\texttt{3'b001})}: Entered on a miss from
+          \texttt{IDLE}. The CPU address, write data, and read/write control
+          signals are latched into internal holding registers to maintain
+          signal stability throughout potential multi-cycle memory latency.
+          On a miss, the FSM transitions directly to \texttt{ALLOCATE}.
+    \item \textbf{ALLOCATE (\texttt{3'b010})}: The controller asserts
+          $\texttt{mem\_req} = 1$ to initiate a main-memory transaction.
+          For a read miss ($\texttt{cpu\_wr} = 0$), the block-aligned address
+          $\{\mathrm{tag}, \mathrm{index}, 4'\mathrm{b}0000\}$ is driven to
+          fetch the full 16-byte (128-bit) line. For a write miss, the target
+          word address and write data are driven ($\texttt{mem\_wr} = 1$).
+          The FSM remains in \texttt{ALLOCATE} until the memory interface
+          asserts $\texttt{mem\_ready} = 1$.
+    \item \textbf{UPDATE (\texttt{3'b011})}: Active solely for read misses.
+          Upon memory burst arrival, the FSM asserts $\texttt{data\_we\_line} = 1$,
+          $\texttt{tag\_we} = 1$, and $\texttt{valid\_we} = 1$ (with
+          $\texttt{valid\_wdata} = 1$) for exactly one clock cycle, latching
+          the refilled block into data RAM, updating the tag RAM, and marking
+          the line valid. Write misses bypass this state entirely.
+    \item \textbf{RESPOND (\texttt{3'b100})}: The controller asserts
+          $\texttt{cpu\_ready} = 1$, signaling to the CPU that the requested
+          read data is valid on $\texttt{cpu\_rdata}$ or that the write miss
+          dispatch has terminated. The FSM then returns to \texttt{IDLE}.
+\end{enumerate}
+
+\begin{table*}[t]
+\centering
+\caption{Cache Controller FSM State Transition and Output Matrix}
+\label{tab:fsm_transitions}
+\begin{tabular}{llccccccccc}
+\hline
+\textbf{Current State} & \textbf{Next State Condition} & \textbf{Next State} & \texttt{cpu\_ready} & \texttt{cpu\_stall} & \texttt{tag\_we} & \texttt{valid\_we} & \texttt{data\_we\_word} & \texttt{data\_we\_line} & \texttt{mem\_req} & \texttt{mem\_wr} \\
+\hline
+\texttt{IDLE} & $\texttt{!cpu\_req}$ & \texttt{IDLE} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+\texttt{IDLE} & $\texttt{cpu\_req} \land \mathrm{hit} \land \texttt{!cpu\_wr}$ (Read Hit) & \texttt{IDLE} & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+\texttt{IDLE} & $\texttt{cpu\_req} \land \mathrm{hit} \land \texttt{cpu\_wr}$ (Write Hit) & \texttt{IDLE} & 1 & 0 & 0 & 0 & 1 & 0 & 1 & 1 \\
+\texttt{IDLE} & $\texttt{cpu\_req} \land \neg\mathrm{hit}$ (Miss) & \texttt{COMPARE\_TAG} & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+\hline
+\texttt{COMPARE\_TAG} & $\mathrm{hit}$ & \texttt{RESPOND} & 0 & 1 & 0 & 0 & $\texttt{saved\_wr}$ & 0 & $\texttt{saved\_wr}$ & $\texttt{saved\_wr}$ \\
+\texttt{COMPARE\_TAG} & $\neg\mathrm{hit}$ & \texttt{ALLOCATE} & 0 & 1 & 0 & 0 & 0 & 0 & 1 & $\texttt{saved\_wr}$ \\
+\hline
+\texttt{ALLOCATE} & $\texttt{!mem\_ready}$ & \texttt{ALLOCATE} & 0 & 1 & 0 & 0 & 0 & 0 & 1 & $\texttt{saved\_wr}$ \\
+\texttt{ALLOCATE} & $\texttt{mem\_ready} \land \texttt{!saved\_wr}$ (Read Refill) & \texttt{UPDATE} & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+\texttt{ALLOCATE} & $\texttt{mem\_ready} \land \texttt{saved\_wr}$ (Write Miss) & \texttt{RESPOND} & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+\hline
+\texttt{UPDATE} & 1 cycle (RAM write complete) & \texttt{RESPOND} & 0 & 1 & 1 & 1 & 0 & 1 & 0 & 0 \\
+\hline
+\texttt{RESPOND} & 1 cycle (access complete) & \texttt{IDLE} & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+\hline
+\end{tabular}
+\end{table*}
+
+\subsubsection{Cycle-by-Cycle Operational Analysis}
+The control timing for each operational case is outlined below:
+\begin{itemize}
+    \item \textbf{Read Hit (1 cycle):} $\texttt{cpu\_req} = 1$, $\texttt{cpu\_wr} = 0$.
+          Address decoding and tag comparison occur combinationally. $\mathrm{hit} = 1$
+          causes $\texttt{cpu\_ready}$ to assert high immediately. Data RAM
+          outputs the selected 32-bit word on $\texttt{cpu\_rdata}$ in the same cycle.
+          Total latency = $1\text{ cycle}$.
+    \item \textbf{Read Miss (15 cycles total):} $\texttt{cpu\_req} = 1$, $\mathrm{hit} = 0$.
+          Cycle~1: Decode/compare miss; $\texttt{cpu\_stall} = 1$.
+          Cycle~2: Enter \texttt{ALLOCATE}; assert $\texttt{mem\_req} = 1$,
+          $\texttt{mem\_addr} = \{\mathrm{tag}, \mathrm{index}, 4'\mathrm{b}0000\}$.
+          Cycles~3--13: Main memory accesses first word (10 cycles) plus 3 burst words
+          (1 cycle each) = 13 cycles.
+          Cycle~14: Enter \texttt{UPDATE}; write 128-bit line to data RAM, tag to tag RAM,
+          and set valid bit.
+          Cycle~15: Enter \texttt{RESPOND}; assert $\texttt{cpu\_ready} = 1$.
+          Total miss penalty = $14\text{ stall cycles}$ ($15\text{ cycles total}$).
+    \item \textbf{Write Hit (1 cycle):} $\texttt{cpu\_req} = 1$, $\texttt{cpu\_wr} = 1$,
+          $\mathrm{hit} = 1$. The FSM asserts $\texttt{data\_we\_word} = 1$, updating
+          the targeted word in the cache line via read-modify-write, and simultaneously
+          asserts $\texttt{mem\_req} = 1, \texttt{mem\_wr} = 1$ to forward the write
+          to main memory. $\texttt{cpu\_ready} = 1$ is returned in the same cycle.
+    \item \textbf{Write Miss (Variable memory latency):} $\texttt{cpu\_req} = 1$,
+          $\texttt{cpu\_wr} = 1$, $\mathrm{hit} = 0$. Under the no-write-allocate
+          policy, the cache line is not fetched into cache. The FSM dispatches
+          the single word directly to memory ($\texttt{mem\_req} = 1, \texttt{mem\_wr} = 1$)
+          and bypasses \texttt{UPDATE}, preserving the existing cache contents without
+          pollution.
+\end{itemize}
+% ----------------------- END PROPOSED SOLUTION B ----------------------
+
+
+% -------------- REFERENCES (merge into the shared list) ---------------
+% \begin{thebibliography}{9}
+% \bibitem{smith1982} A.~J. Smith, ``Cache memories,'' \emph{ACM Computing
+%   Surveys}, vol.~14, no.~3, pp.~473--530, Sep. 1982.
+% \bibitem{hill1989} M.~D. Hill and A.~J. Smith, ``Evaluating associativity
+%   in CPU caches,'' \emph{IEEE Trans. Computers}, vol.~38, no.~12, pp.~1612--1630,
+%   Dec. 1989.
+% \bibitem{hennessy2017} J.~L. Hennessy and D.~A. Patterson, \emph{Computer
+%   Architecture: A Quantitative Approach}, 6th~ed.\ Cambridge, MA, USA:
+%   Morgan Kaufmann, 2017.
+% \bibitem{patterson2020} D.~A. Patterson and J.~L. Hennessy, \emph{Computer
+%   Organization and Design RISC-V Edition}, 2nd~ed.\ Morgan Kaufmann, 2020.
+% \end{thebibliography}

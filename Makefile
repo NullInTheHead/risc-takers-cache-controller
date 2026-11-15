@@ -8,7 +8,7 @@ VVP      ?= vvp
 TRACES  = traces/sequential.mem traces/loop.mem traces/random.mem traces/conflict.mem
 RTL     = rtl/address_decoder.v rtl/data_ram.v rtl/tag_ram.v rtl/valid_ram.v
 
-.PHONY: traces ref-model sim clean
+.PHONY: traces ref-model sim m2-verify clean
 
 # Generate all trace files
 traces: $(TRACES)
@@ -18,10 +18,17 @@ $(TRACES): scripts/gen_traces.py
 
 # Run reference model on all traces
 ref-model: traces
+	@mkdir -p results
 	@for t in sequential loop random conflict; do \
 		echo "=== ref_model: $$t ==="; \
 		$(PYTHON) scripts/ref_model.py --trace traces/$$t.mem --output results/ref_$$t.log; \
 	done
+
+# Member 2 standalone verification suite
+m2-verify:
+	$(PYTHON) scripts/verify_m2.py
+	$(PYTHON) scripts/test_m1_m2_integration.py
+	$(PYTHON) scripts/verify_all_traces.py
 
 # Simulate (uncomment when M2/M3 RTL is ready)
 # sim: traces
