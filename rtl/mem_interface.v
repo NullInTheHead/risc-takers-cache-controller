@@ -2,13 +2,15 @@
 // Owner: Member 3 (Main-Memory Interface & Top-Level Integration)
 //
 // Translates the cache controller FSM's memory request signals into the
-// main_memory module's req/ack protocol.  On a read miss the FSM sends a
+// main_memory module's req/ack protocol. On a read miss the FSM sends a
 // block-aligned address; this module forwards the request and delivers the
-// returned BLOCK_BITS-wide line back to the FSM / data_ram.  On a write
+// returned BLOCK_BITS-wide line back to the FSM / data_ram. On a write
 // (write-through), it forwards the single word and its address.
 //
-// The interface latches the request at the start and holds it stable until
-// main_memory acknowledges, then pulses `ready` for one cycle.
+// The interface latches the request at the IDLE -> BUSY transition, pulses
+// mm_req to initiate the main-memory transaction, holds address/data stable,
+// and asserts fsm_mem_ready combinationally when main memory asserts mm_ready.
+// This prevents spurious re-triggering while the FSM transitions out of ALLOCATE.
 
 `timescale 1ns/1ps
 
@@ -49,46 +51,43 @@ module mem_interface #(
 );
 
     // ------------------------------------------------------------------
-    // Simple state machine: IDLE -> BUSY (wait for mm_ready) -> back
+    // FSM State Encoding: IDLE -> BUSY (wait for mm_ready) -> IDLE
     // ------------------------------------------------------------------
     localparam MI_IDLE = 1'b0;
     localparam MI_BUSY = 1'b1;
 
     reg mi_state;
-    reg pending_ready;  // one-cycle pulse
 
-    assign fsm_mem_ready = pending_ready;
+    // Ready signal is passed combinationally to FSM when memory finishes,
+    // allowing FSM to advance to UPDATE / RESPOND on the very next clock edge.
+    assign fsm_mem_ready = mm_ready && (mi_state == MI_BUSY);
     assign refill_data   = mm_rdata;    // pass block through
 
     always @(posedge clk) begin
         if (rst) begin
-            mi_state      <= MI_IDLE;
-            mm_req        <= 1'b0;
-            mm_wr         <= 1'b0;
-            mm_addr       <= {ADDR_WIDTH{1'b0}};
-            mm_wdata      <= {DATA_WIDTH{1'b0}};
-            pending_ready <= 1'b0;
+            mi_state <= MI_IDLE;
+            mm_req   <= 1'b0;
+            mm_wr    <= 1'b0;
+            mm_addr  <= {ADDR_WIDTH{1'b0}};
+            mm_wdata <= {DATA_WIDTH{1'b0}};
         end else begin
-            pending_ready <= 1'b0;  // default de-assert
-
             case (mi_state)
                 MI_IDLE: begin
                     if (fsm_mem_req) begin
-                        mm_req    <= 1'b1;
-                        mm_wr     <= fsm_mem_wr;
-                        mm_addr   <= fsm_mem_addr;
-                        mm_wdata  <= fsm_mem_wdata;
-                        mi_state  <= MI_BUSY;
+                        mm_req   <= 1'b1;
+                        mm_wr    <= fsm_mem_wr;
+                        mm_addr  <= fsm_mem_addr;
+                        mm_wdata <= fsm_mem_wdata;
+                        mi_state <= MI_BUSY;
                     end
                 end
 
                 MI_BUSY: begin
+                    // Deassert mm_req after main memory has sampled it
+                    mm_req <= 1'b0;
                     if (mm_ready) begin
-                        mm_req        <= 1'b0;
-                        pending_ready <= 1'b1;
-                        mi_state      <= MI_IDLE;
+                        mi_state <= MI_IDLE;
                     end
-                    // else: keep mm_req high, wait
                 end
 
                 default: mi_state <= MI_IDLE;

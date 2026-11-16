@@ -56,7 +56,6 @@ module main_memory #(
     localparam S_MEM_IDLE  = 2'd0;
     localparam S_MEM_FIRST = 2'd1;      // counting first-word latency
     localparam S_MEM_BURST = 2'd2;      // counting subsequent words
-    localparam S_MEM_DONE  = 2'd3;
 
     reg [1:0]               mstate;
     reg [31:0]              lat_cnt;     // latency counter
@@ -68,11 +67,12 @@ module main_memory #(
 
     always @(posedge clk) begin
         if (rst) begin
-            mstate    <= S_MEM_IDLE;
-            mem_ready <= 1'b0;
-            mem_rdata <= {BLOCK_BITS{1'b0}};
-            lat_cnt   <= 0;
-            word_cnt  <= 0;
+            mstate      <= S_MEM_IDLE;
+            mem_ready   <= 1'b0;
+            mem_rdata   <= {BLOCK_BITS{1'b0}};
+            lat_cnt     <= 0;
+            word_cnt    <= 0;
+            rdata_build <= {BLOCK_BITS{1'b0}};
         end else begin
             mem_ready <= 1'b0;  // default: de-assert
 
@@ -83,7 +83,7 @@ module main_memory #(
                         saved_addr  <= mem_addr;
                         saved_wdata <= mem_wdata;
                         saved_wr    <= mem_wr;
-                        lat_cnt     <= 1;       // start counting from 1
+                        lat_cnt     <= 2;       // cycle 1 elapsed on request latch
                         word_cnt    <= 0;
                         rdata_build <= {BLOCK_BITS{1'b0}};
                         mstate      <= S_MEM_FIRST;
@@ -123,15 +123,12 @@ module main_memory #(
                 // -------------------------------------------------
                 S_MEM_BURST: begin
                     if (lat_cnt >= MEM_NEXT_LAT) begin
-                        // Grab next word
                         rdata_build[word_cnt*DATA_WIDTH +: DATA_WIDTH] <=
                             mem_array[(saved_addr[ADDR_WIDTH-1:2] + word_cnt) % MEM_DEPTH];
                         word_cnt <= word_cnt + 1;
 
                         if (word_cnt + 1 >= WORDS_PER_BLK) begin
                             // All words collected — pack and signal ready
-                            // Build final output: words already in rdata_build,
-                            // plus the last word we just read
                             mem_rdata <= rdata_build;
                             mem_rdata[word_cnt*DATA_WIDTH +: DATA_WIDTH] <=
                                 mem_array[(saved_addr[ADDR_WIDTH-1:2] + word_cnt) % MEM_DEPTH];
