@@ -1,0 +1,109 @@
+% docs/sections/m3.tex -- M3 Report Section: Main-Memory Interface & Integration
+% Owner: Member 3
+%
+% Sections contributed by M3 to the Phase I IEEE report:
+%   3C. Literature Review – Write Policies and Memory Interfaces
+%   4C. Proposed Solution – Refill & Integration
+
+% =====================================================================
+\subsection{Literature Review: Write Policies and Memory Interfaces}
+\label{sec:litreview-m3}
+
+The interaction between a cache and main memory is governed by two
+orthogonal policy choices: \emph{write policy} and \emph{write-allocate
+policy}~\cite{smith82, hennessy-patterson}.
+
+\subsubsection{Write-Through vs.\ Write-Back}
+Under a \textbf{write-through} policy every CPU write immediately updates
+both the cache and the backing store.  The advantage is simplicity and
+consistency: on a miss no dirty data can be lost, so a read-miss refill
+never triggers a writeback.  The disadvantage is higher memory-bus traffic,
+since every store generates a memory transaction regardless of spatial
+locality within the block~\cite{jouppi90}.
+
+A \textbf{write-back} policy defers memory writes until the dirty line is
+evicted.  This reduces traffic significantly—especially for loops that
+repeatedly modify the same cache line—but introduces a \emph{dirty bit}
+per line and a more complex eviction path.  Phase~II of this project
+extends the controller to write-back with a dirty-bit array.
+
+\subsubsection{Write-Allocate vs.\ No-Write-Allocate}
+On a \textbf{write miss}, a \emph{write-allocate} (or \emph{fetch-on-write})
+policy loads the target block into the cache before performing the write,
+exploiting expected future spatial locality.  In contrast,
+\emph{no-write-allocate} forwards the write directly to memory and does
+not disturb the cache.  In Phase~I we combine write-through with
+no-write-allocate: the simplest pair, since neither dirty bits nor miss
+refills are needed on writes~\cite{hennessy-patterson, hill-smith89}.
+
+\subsubsection{Memory Interface Protocols}
+Modern DRAM interfaces deliver data in \emph{bursts}: a high
+row-activation latency for the first word followed by a much lower
+column-access latency for subsequent words within the same
+row~\cite{hennessy-patterson}.  Our behavioural memory model captures this
+asymmetry with two parameters: \texttt{MEM\_FIRST\_LAT} (10 cycles) and
+\texttt{MEM\_NEXT\_LAT} (1 cycle), yielding a 4-word block refill
+penalty of $10 + 3 \times 1 = 13$ cycles—consistent with the AMAT
+analysis in Section~\ref{sec:analysis-m5}.
+
+% =====================================================================
+\subsection{Proposed Solution: Refill Path \& System Integration}
+\label{sec:proposed-m3}
+
+\subsubsection{Main-Memory Behavioural Model (\texttt{main\_memory.v})}
+The memory model is a flat $64\,\text{K}$-word register array.  A two-bit
+internal FSM (\texttt{IDLE} $\to$ \texttt{FIRST} $\to$ \texttt{BURST}
+$\to$ \texttt{IDLE}) counts clock cycles to reproduce the first-word and
+burst latencies.  On a \emph{read} request the model returns a full
+\texttt{BLOCK\_BITS}-wide line; on a \emph{write} it stores a single word.
+Both latencies are parameterised so the analysis sweep in Phase~II can
+vary the miss penalty without changing RTL.
+
+\subsubsection{Memory Interface Bridge (\texttt{mem\_interface.v})}
+This module translates the FSM's per-request signals (\texttt{mem\_req},
+\texttt{mem\_wr}, \texttt{mem\_addr}, \texttt{mem\_wdata}) into the
+main-memory's \texttt{req/ack} handshake.  It latches the request on the
+rising edge of \texttt{fsm\_mem\_req}, holds the address and data stable
+across the memory latency window, and pulses \texttt{fsm\_mem\_ready}
+for exactly one cycle when the memory acknowledges.  The full refill
+block is passed through combinationally on the \texttt{refill\_data} bus.
+
+\subsubsection{Top-Level Integration (\texttt{cache\_top.v})}
+\texttt{cache\_top} instantiates and wires all eight sub-modules with
+three overridable parameters (\texttt{ADDR\_WIDTH}, \texttt{CACHE\_SIZE},
+\texttt{BLOCK\_SIZE}) plus two memory-timing parameters
+(\texttt{MEM\_FIRST\_LAT}, \texttt{MEM\_NEXT\_LAT}).  The external
+interface exposes only CPU-side signals (\texttt{cpu\_req},
+\texttt{cpu\_wr}, \texttt{cpu\_addr}, \texttt{cpu\_wdata},
+\texttt{cpu\_rdata}, \texttt{cpu\_ready}), hiding all internal buses.
+
+Signal flow on a \textbf{read miss}:
+\begin{enumerate}
+  \item CPU drives \texttt{cpu\_req=1}, \texttt{cpu\_wr=0}.
+        \texttt{address\_decoder} splits the address; \texttt{tag\_comparator}
+        reports \texttt{hit=0}.
+  \item FSM transitions \texttt{IDLE} $\to$ \texttt{COMPARE\_TAG} $\to$
+        \texttt{ALLOCATE}, asserting \texttt{mem\_req}.
+  \item \texttt{mem\_interface} forwards the block-aligned address to
+        \texttt{main\_memory} and waits 13 cycles.
+  \item On \texttt{mem\_ready}, FSM moves to \texttt{UPDATE}; one-clock
+        writes: \texttt{data\_we\_line=1} (refill), \texttt{tag\_we=1},
+        \texttt{valid\_we=1}.
+  \item FSM enters \texttt{RESPOND}; \texttt{cpu\_ready} goes high and
+        \texttt{cpu\_rdata} presents the selected word.
+\end{enumerate}
+
+Signal flow on a \textbf{write hit} (write-through):
+\begin{enumerate}
+  \item \texttt{hit=1} in \texttt{IDLE}; FSM asserts \texttt{data\_we\_word=1}
+        to update the cache and simultaneously fires \texttt{mem\_req=1},
+        \texttt{mem\_wr=1} to forward the word to memory.
+  \item \texttt{cpu\_ready} is asserted in the \emph{same} cycle (fast-path).
+\end{enumerate}
+
+Signal flow on a \textbf{write miss} (no-write-allocate):
+\begin{enumerate}
+  \item \texttt{hit=0}; FSM transitions through \texttt{COMPARE\_TAG} $\to$
+        \texttt{ALLOCATE}, sending the word to memory without refilling.
+  \item On \texttt{mem\_ready}, FSM goes to \texttt{RESPOND} (no \texttt{UPDATE}).
+\end{enumerate}
