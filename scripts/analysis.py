@@ -141,7 +141,7 @@ def main():
         )
     tex_lines.append(r"\hline")
 
-    out_path = os.path.join(RESULTS_DIR, "m5_amat_summary.txt")
+    out_path = os.path.join(RESULTS_DIR, "amat_summary.txt")
     with open(out_path, "w") as f:
         f.write("\n".join(tex_lines) + "\n")
     print(f"\n  LaTeX table rows saved to: {out_path}")

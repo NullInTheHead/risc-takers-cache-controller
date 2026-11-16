@@ -2,8 +2,11 @@ build/
 tb/waves/
 *.vcd
 *.aux
-*.log
 *.out
 __pycache__/
 *.pyc
-results/
+.DS_Store
+*/.DS_Store
+
+# LaTeX build logs
+docs/*.log

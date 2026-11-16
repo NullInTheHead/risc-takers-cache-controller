@@ -1,0 +1,6 @@
+  Total accesses : 200
+  Read hits      : 150
+  Read misses    : 50
+  Write hits     : 0
+  Write misses   : 0
+  Overall hit rate : 75.00%

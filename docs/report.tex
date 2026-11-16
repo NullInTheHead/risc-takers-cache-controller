@@ -1,66 +1,109 @@
 % =====================================================================
-%  report.tex -- Master IEEE Report
+%  report.tex -- Master IEEE Conference Report
 %  Project 6: Direct-Mapped Cache Controller in Verilog
 %  Team: RISC Takers
 %
-%  Assembled by Member 5 (Analysis, Synthesis & Documentation Lead)
-%  Compile with: pdflatex report.tex  (run twice for cross-references)
-%  Requires IEEEtran.cls in the same directory or on your TeX path.
-%  Overleaf: upload this file + IEEEtran.cls + all figures/*.pdf/.png
+%  Assembled and authored by Soumya Tiwari (Analysis, Synthesis &
+%  Documentation Lead)
+%
+%  Compile on Overleaf (pdfLaTeX):
+%    Upload report.tex + figures/block_diagram.pdf + figures/fsm_diagram.png
+%    IEEEtran.cls is pre-installed on Overleaf — no extra upload needed.
 % =====================================================================
 
 \documentclass[conference]{IEEEtran}
 \IEEEoverridecommandlockouts
 
-% ---------- Packages ----------
+% ---- Packages --------------------------------------------------------
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{cite}
-\usepackage{amsmath,amssymb}
+\usepackage{amsmath,amssymb,amsfonts}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{url}
 \usepackage{hyperref}
-\usepackage{listings}
-\usepackage{xcolor}
-\usepackage{multirow}
-\usepackage{tabularx}
 \usepackage{array}
+\usepackage{multirow}
 \usepackage{balance}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{placeins}
 
+% ---- Listings style --------------------------------------------------
 \lstset{
+  language=Verilog,
   basicstyle=\ttfamily\scriptsize,
-  keywordstyle=\color{blue},
-  commentstyle=\color{gray},
-  breaklines=true,
-  frame=single,
+  keywordstyle=\color{blue!80!black}\bfseries,
+  commentstyle=\color{green!50!black}\itshape,
+  stringstyle=\color{red!70!black},
   numbers=left,
-  numberstyle=\tiny,
-  language=Verilog
+  numberstyle=\tiny\color{gray},
+  stepnumber=1,
+  frame=single,
+  breaklines=true,
+  captionpos=b,
+  tabsize=2
 }
+
+% ---- Hyperref setup --------------------------------------------------
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  citecolor=green!50!black,
+  urlcolor=blue!70!black
+}
+
+% ---- Layout fixes (overflow / overlap) -------------------------------
+% Allow line breaks after underscores so \texttt{...} names don't run
+% into the neighbouring column.
+\renewcommand{\_}{\textunderscore\allowbreak{}}
+\pdfstringdefDisableCommands{\def\_{\textunderscore}}
+\setlength{\emergencystretch}{2em}
+% Float placement tuning (keeps figures/tables close to where they are cited)
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{5}
+\setcounter{dbltopnumber}{3}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.6}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.8}
+\renewcommand{\dbltopfraction}{0.95}
+\renewcommand{\dblfloatpagefraction}{0.8}
+% Ragged-right fixed-width column for tables
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
 
 % ======================================================================
 \begin{document}
 
-% ---------- Title / Authors ----------
+% ---- Title -----------------------------------------------------------
 \title{Design and Verification of a Parameterised\\
        Direct-Mapped Cache Controller in Verilog}
 
+% ---- Authors ---------------------------------------------------------
 \author{%
-  \IEEEauthorblockN{Member 1 (Cache Architecture \& Storage)}
-  \IEEEauthorblockA{\textit{Team RISC Takers}}
+  \IEEEauthorblockN{Niharika Chaudhary}
+  \IEEEauthorblockA{Cache Architecture \& Storage\\
+                    Team RISC Takers}
   \and
-  \IEEEauthorblockN{Member 2 (Controller FSM \& Tag Comparator)}
-  \IEEEauthorblockA{\textit{Team RISC Takers}}
+  \IEEEauthorblockN{Karan Chillar}
+  \IEEEauthorblockA{Controller FSM \& Tag Comparator\\
+                    Team RISC Takers}
   \and
-  \IEEEauthorblockN{Member 3 (Memory Interface \& Top-Level Integration)}
-  \IEEEauthorblockA{\textit{Team RISC Takers}}
+  \IEEEauthorblockN{Harshita Joshi}
+  \IEEEauthorblockA{Memory Interface \& Top-Level Integration\\
+                    Team RISC Takers}
   \and
-  \IEEEauthorblockN{Member 4 (Verification \& Memory-Access Traces)}
-  \IEEEauthorblockA{\textit{Team RISC Takers}}
+  \IEEEauthorblockN{Shreshtha Gupta}
+  \IEEEauthorblockA{Verification \& Memory-Access Traces\\
+                    Team RISC Takers}
   \and
-  \IEEEauthorblockN{Member 5 (Analysis, Synthesis \& Documentation Lead)}
-  \IEEEauthorblockA{\textit{Team RISC Takers}}
+  \IEEEauthorblockN{Soumya Tiwari}
+  \IEEEauthorblockA{Analysis, Synthesis \& Documentation Lead\\
+                    Team RISC Takers}
 }
 
 \maketitle
@@ -70,63 +113,64 @@
 % ======================================================================
 \begin{abstract}
 This paper presents the design, implementation, and verification of a
-fully parameterised direct-mapped cache controller for a 32-bit
-processor system, implemented in synthesisable Verilog (IEEE\,1364-2001).
-The default configuration provides 1\,KB of data storage in 64 lines
-of 16\,bytes each, using a write-through, no-write-allocate policy that
-avoids dirty bits and simplifies the control path. The design is
-partitioned into five modular sub-systems: an address decoder, three
-storage RAMs (data, tag, valid-bit), a tag comparator, a five-state
-synchronous finite state machine (FSM) controller, a memory-interface
-bridge, and a behavioural main-memory model. The FSM achieves
-single-cycle hit latency by exploiting combinational reads from all
-storage arrays. Four structurally diverse memory-access traces covering
-sequential, repeated-loop, random, and conflict-striding access
-patterns are used to evaluate performance. Bit-accurate agreement
-between the Python reference model and the RTL model is achieved across
-all 924 accesses in the trace suite. The measured hit rates are
-75.00\%, 94.14\%, 0.00\%, and 0.00\% for the sequential, loop,
-random, and conflict traces, respectively, yielding Average Memory
-Access Time (AMAT) values of 5.00, 1.94, 17.00, and 17.00 cycles
-against a 16-cycle miss penalty. The complete RTL is hosted on GitHub
-and is intended as the foundation for Phase~II extensions
-including write-back policy and set-associativity.
+fully parameterised direct-mapped cache controller for a 32-bit processor
+system, implemented in synthesisable Verilog (IEEE\,1364-2001/2005). The
+default configuration provides 1\,KB of data storage in 64 lines of
+16\,bytes each, using a write-through, no-write-allocate policy that avoids
+dirty bits and simplifies the control path. The design is partitioned into
+five modular sub-systems: an address decoder, three storage RAMs (data, tag,
+valid-bit), a tag comparator, a five-state synchronous finite state machine
+(FSM) controller, a memory-interface bridge, and a behavioural main-memory
+model. The FSM achieves single-cycle hit latency by exploiting combinational
+reads from all storage arrays. Four structurally diverse memory-access traces
+covering sequential, repeated-loop, random, and conflict-striding patterns are
+used to evaluate performance. Bit-accurate agreement between the Python
+reference model and the RTL behavioural model is confirmed across all 924
+accesses. The measured hit rates are 75.00\%, 94.14\%, 0.00\%, and 0.00\%
+for the sequential, loop, random, and conflict traces, yielding Average Memory
+Access Time (AMAT) values of 5.00, 1.94, 17.00, and 17.00 cycles against a
+16-cycle miss penalty. The complete RTL is hosted on GitHub and is intended
+as the foundation for Phase~II extensions including write-back policy and
+set-associativity.
 \end{abstract}
 
 \begin{IEEEkeywords}
 cache controller, direct-mapped, write-through, Verilog, RTL design,
-finite state machine, AMAT, trace-driven simulation
+finite state machine, AMAT, trace-driven simulation, FPGA synthesis
 \end{IEEEkeywords}
 
 % ======================================================================
-% SECTION I — INTRODUCTION  (Member 1)
+% SECTION I — INTRODUCTION
 % ======================================================================
 \section{Introduction}
-Processor speeds have grown far faster than main-memory access times, so a
-modern CPU would spend most of its cycles waiting on DRAM without a memory
-hierarchy. A cache is a small, fast memory placed between the processor and
-main memory. It keeps recently used blocks close to the processor and serves
-most accesses in a single cycle. This works because real programs show
-\emph{temporal locality} (a recently used address is likely to be used again
-soon) and \emph{spatial locality} (addresses near a recently used one are
-likely to be used next)~\cite{smith1982,hennessy2017}.
+\label{sec:intro}
+
+Processor speeds have grown far faster than main-memory access times.
+Without a memory hierarchy a modern CPU would spend most of its cycles
+stalled on DRAM. A cache is a small, fast memory placed between the
+processor and main memory that keeps recently used blocks close to the
+processor, serving most accesses in a single cycle. This is effective
+because real programs exhibit \emph{temporal locality}---a recently used
+address is likely to be accessed again soon---and \emph{spatial
+locality}---addresses near a recently used one are likely to be accessed
+next~\cite{smith1982,hennessy2017}.
 
 This project designs and verifies a parameterised direct-mapped cache
 controller in Verilog. The default configuration is a 1\,KB cache with
-16-byte blocks and 32-bit byte addresses. The design is split into storage
-(data, tag and valid-bit RAMs and the address decoder), control (tag
-comparator and controller FSM) and a main-memory interface. It is exercised
-with sequential, repeated, random and conflict-heavy address traces, and
-evaluated by hit ratio, miss ratio, average memory access time (AMAT) and
-synthesis cost.
+16-byte blocks and 32-bit byte addresses. The design is partitioned into
+storage (data, tag and valid-bit RAMs, address decoder), control (tag
+comparator and controller FSM), and a main-memory interface. It is
+exercised with sequential, repeated-loop, random, and conflict-heavy
+address traces, and evaluated by hit ratio, miss ratio, AMAT, and
+synthesis resource usage.
 
 The remainder of this paper is organised as follows.
 Section~\ref{sec:litrev} reviews the relevant literature.
-Section~\ref{sec:solution} describes the proposed design for each team
-member's sub-system. Section~\ref{sec:results} presents measured
-hit rates, AMAT values, and synthesis resource estimates.
-Section~\ref{sec:contributions} summarises individual contributions.
-Section~\ref{sec:conclusion} concludes and outlines Phase~II work.
+Section~\ref{sec:solution} describes the proposed design for each
+sub-system. Section~\ref{sec:results} presents the measured hit rates,
+AMAT values, and synthesis estimates. Section~\ref{sec:contributions}
+summarises individual contributions, and Section~\ref{sec:conclusion}
+concludes with a Phase~II roadmap.
 
 % ======================================================================
 % SECTION II — LITERATURE REVIEW
@@ -134,157 +178,93 @@ Section~\ref{sec:conclusion} concludes and outlines Phase~II work.
 \section{Literature Review}
 \label{sec:litrev}
 
-% ---- A: Member 1 -------------------------------------------------------
+% ---- A ---------------------------------------------------------------
 \subsection{Memory Hierarchy, Locality and Mapping Schemes}
+\label{sec:litrev-a}
+
 Smith's survey of cache memories~\cite{smith1982} set out the main design
-choices still used today: placement policy, block size, replacement and write
-policy. It showed that small caches can achieve high hit ratios because of
-program locality. The survey also showed that block size is a trade-off.
-Larger blocks exploit spatial locality but raise the miss penalty, and in a
-small cache they increase misses because fewer blocks fit.
+choices still in use today: placement policy, block size, replacement
+policy and write policy. It showed that small caches can achieve high hit
+ratios because of program locality, and that block size is a trade-off:
+larger blocks exploit spatial locality but raise the miss penalty and
+reduce the number of distinct blocks that can be held simultaneously.
 
-Placement policy decides where a memory block may live in the cache. In a
-\emph{direct-mapped} cache each block has exactly one possible line, chosen
-by the index bits of the address. A \emph{fully associative} cache allows any
-line, and an $n$-way \emph{set-associative} cache allows any of $n$ lines in
-one set. Hill and Smith~\cite{hill1989} evaluated associativity with
-trace-driven simulation and classified misses as compulsory, capacity and
-conflict. Direct mapping suffers most from conflict misses, because two
-frequently used blocks with the same index keep evicting each other. Its
-advantage is that only one tag comparison is needed and no replacement
-decision has to be made. This makes the hit path short and the hardware
-small, so a direct-mapped cache can have a lower hit time than an associative
-cache of the same size.
-
-Jouppi~\cite{jouppi1990} kept the fast direct-mapped hit path and attacked
-its conflict misses instead, by adding a small fully associative victim
-cache that holds recently evicted lines. Textbook treatments by Hennessy and
-Patterson~\cite{hennessy2017,patterson2020} combine these effects into a
-single metric:
+Placement policy determines where in the cache a memory block may reside.
+In a \emph{direct-mapped} cache each block maps to exactly one line,
+chosen by the index bits of the address. Hill and
+Smith~\cite{hill1989} evaluated associativity via trace-driven simulation
+and classified misses as compulsory, capacity, and conflict. Direct
+mapping suffers most from conflict misses, but has a lower hit-time and
+simpler hardware than associative designs because only one tag comparison
+is needed. Jouppi~\cite{jouppi1990} mitigated conflict misses by adding a
+small fully-associative victim cache. Hennessy and
+Patterson~\cite{hennessy2017,patterson2020} unify these trade-offs into:
 \begin{equation}
-\mathrm{AMAT} = t_{\mathrm{hit}} + m \cdot t_{\mathrm{penalty}},
+  \mathrm{AMAT} = t_{\mathrm{hit}} + m \cdot t_{\mathrm{penalty}},
+  \label{eq:amat-basic}
 \end{equation}
-where $m$ is the miss ratio. These sources motivate the design choices in
-this project: direct mapping for a single-cycle hit and simple hardware, and
-conflict-heavy traces to expose its main weakness.
+where $m$ is the miss rate. These sources motivate the design choices in
+this project: direct mapping for a single-cycle hit path and minimal
+hardware, with conflict-heavy traces to expose its main weakness.
 
-% ---- B: Member 2 -------------------------------------------------------
+% ---- B ---------------------------------------------------------------
 \subsection{Cache Controller Design and FSM Architectures}
-\label{sec:litrev-m2}
+\label{sec:litrev-b}
 
-The cache controller is the coordinating heart of the cache sub-system.
-While the storage arrays (data, tag, and valid-bit RAMs) form the data
-path, the controller orchestrates access sequencing, hit/miss detection,
+The cache controller orchestrates access sequencing, hit/miss detection,
 CPU stall generation, and line refills~\cite{smith1982,hennessy2017}.
-Classical cache controller design balances two competing objectives:
-minimising the hit latency (which directly dictates the primary clock
-cycle or pipeline stall penalty) and managing the multi-cycle latency of
-main-memory transactions without corrupting architectural state.
+Smith observed that controller complexity is strongly determined by write
+and allocation policy. A \emph{write-through / no-write-allocate}
+policy eliminates dirty bits and eviction write-backs, dramatically
+simplifying the FSM: on a write hit the word is updated in cache and
+simultaneously forwarded to memory; on a write miss the write bypasses
+cache entirely.
 
-In early microprocessor caches and classical single-issue architectures,
-controllers were implemented as synchronous finite state machines
-(FSMs)~\cite{smith1982}. Smith observed that cache control complexity
-is strongly dictated by the write policy and allocation strategy.
-A \emph{write-through} cache with \emph{no-write-allocate} policy
-simplifies controller design dramatically: on a write hit, the updated
-word is written into the cache line while simultaneously being forwarded
-to memory; on a write miss, the cache remains untouched, and the write
-is dispatched directly to main memory. Consequently, a write-through
-controller requires no dirty bits and no block eviction (write-back)
-states prior to allocating a new line. Conversely, a \emph{write-back}
-controller requires tracking dirty status per block and executing a
-two-phase memory handshake on misses that replace dirty lines (write-back
-followed by refill)~\cite{hennessy2017}.
+Hennessy and Patterson~\cite{hennessy2017,patterson2020} decompose the
+controller cycle into address decode, tag compare, response, and refill
+allocation. The key design decision is whether tag comparison is
+combinational (enabling a single-cycle hit) or pipelined. In a
+direct-mapped architecture the index can be presented to asynchronous-read
+RAMs immediately, so the tag and valid bit are available in the same cycle
+as the request, enabling $t_{\mathrm{hit}} = 1\,\mathrm{cycle}$. Any
+additional pipeline stage on the hit path adds a mandatory stall cycle to
+every memory access, degrading overall processor throughput~\cite{hill1989}.
 
-Hennessy and Patterson~\cite{hennessy2017,patterson2020} divide the
-controller's operational cycle into distinct phases: address decoding, tag
-comparison, response signaling, and refill allocation. A central design
-decision is whether tag comparison occurs combinationally within the
-request cycle or across discrete pipeline registers. In a direct-mapped
-architecture, because each address maps to exactly one line, the index
-can be presented to asynchronous-read RAMs immediately, allowing the tag
-and valid bit to be compared combinationally in the same cycle. This
-enables a single-cycle hit latency ($t_{\mathrm{hit}} = 1\text{ cycle}$),
-which is foundational to achieving low AMAT.
-
-When a miss occurs, the controller must assert a stall signal to the CPU
-pipeline, hold the request address and write data stable, and initiate a
-refill sequence with the memory interface~\cite{hill1989}. The controller
-FSM must therefore support a robust request/acknowledge handshake with
-variable-latency DRAM controllers, transitioning through allocate, refill,
-and update states before de-asserting the stall condition.
-
-% ---- C: Member 3 -------------------------------------------------------
+% ---- C ---------------------------------------------------------------
 \subsection{Write Policies and Main-Memory Interfaces}
-\label{sec:litreview-m3}
+\label{sec:litrev-c}
 
-The interaction between a cache and main memory is governed by two
-orthogonal policy choices: \emph{write policy} (when memory is updated) and
-\emph{write-allocation policy} (whether a line is brought into cache on a
-write miss)~\cite{smith1982, hennessy2017}.
+The interaction between cache and main memory is governed by two orthogonal
+choices: \emph{write policy} (when memory is updated) and
+\emph{write-allocation policy} (whether a line is fetched on a write
+miss)~\cite{smith1982,hennessy2017}. Write-through keeps main memory
+always consistent, simplifying refills and system-level coherency at the
+cost of elevated write-bus traffic. Write-back defers memory updates until
+eviction, reducing traffic but requiring a dirty bit per line and a
+two-phase eviction-refill controller~\cite{jouppi1990,patterson2020}.
 
-Under a \textbf{write-through} policy, every CPU write immediately updates
-both the cache line (if present) and the backing store. The primary
-advantage is architectural simplicity and data consistency: main memory is
-always up to date, eliminating the need for dirty bits or writebacks on
-evictions. Consequently, handling a read-miss refill simply overwrites the
-selected line without an eviction writeback~\cite{jouppi1990}. The drawback
-is elevated memory-bus traffic, as every store instruction generates a memory
-bus transaction regardless of temporal write locality~\cite{patterson2020}.
+Modern DRAM uses burst transfers: an initial row-activation latency is
+paid for the first word, then subsequent words in the same row arrive at
+one per cycle~\cite{hennessy2017}. The parameterised model in this project
+uses \texttt{MEM\_FIRST\_LAT}\,=\,10 cycles and
+\texttt{MEM\_NEXT\_LAT}\,=\,1 cycle. A 4-word (16-byte) block refill
+therefore requires $10 + 3 \times 1 = 13$ memory cycles, which dominates
+the miss penalty.
 
-In contrast, a \textbf{write-back} policy defers memory updates until a
-dirty line is evicted from the cache. This significantly reduces write
-traffic at the expense of maintaining a per-line \emph{dirty bit} and
-implementing a two-phase eviction-refill controller.
-
-On a \textbf{write miss}, a \emph{write-allocate} policy
-fetches the target block from memory into cache before completing the write,
-exploiting spatial and temporal locality. Conversely, \emph{no-write-allocate}
-forwards the write directly to memory, leaving the cache unchanged~\cite{hennessy2017,hill1989}.
-In Phase~I, we combine write-through with no-write-allocate: the cleanest and
-most deterministic pairing, as writes never trigger block refills or dirty-bit
-management.
-
-Modern synchronous DRAM architectures access memory in \emph{bursts}: an
-initial row-activation and column-selection latency is paid for the first word,
-after which consecutive words within the open row are transferred at one word
-per clock cycle~\cite{hennessy2017}. Our behavioural
-memory model parameterises this asymmetry via \texttt{MEM\_FIRST\_LAT} (10 cycles)
-and \texttt{MEM\_NEXT\_LAT} (1 cycle). A 4-word (16-byte) block refill thus requires
-$10 + 3 \times 1 = 13$ memory cycles, forming the baseline miss penalty for the
-AMAT calculations in Section~\ref{sec:analysis-m5}.
-
-% ---- D: Member 4 -------------------------------------------------------
+% ---- D ---------------------------------------------------------------
 \subsection{Trace-Driven Simulation and Cache Verification}
-\label{sec:m4-litrev}
+\label{sec:litrev-d}
 
-Evaluating a cache design before it is fabricated requires a way to feed
-realistic memory-access patterns into the model and measure the resulting
-behaviour. \emph{Trace-driven simulation} is the classical method: a
-sequence of addresses (a \emph{trace}) is recorded or synthesised and then
-replayed through a cache simulator. Smith's landmark survey~\cite{smith1982}
-demonstrated that trace-driven simulation captures the interplay of block
-size, associativity and replacement policy far more faithfully than analytical
-models, because it preserves the temporal ordering of references that real
-programs exhibit. The same survey established the two locality
-principles---temporal and spatial---that underpin every cache optimisation
-and that must therefore be represented in any credible trace set.
-
-Hennessy and Patterson~\cite{hennessy2017} classify misses into
-three categories: \emph{compulsory} (first access to a block),
-\emph{capacity} (the working set exceeds the cache size) and
-\emph{conflict} (two blocks map to the same index).
-Hill and Smith~\cite{hill1989} used trace-driven simulation to compare hit
-rates across associativities and cache sizes, introducing the concept of
-\emph{inclusion properties} and showing that conflict misses dominate in
-small direct-mapped caches.
-
-Verification of the register-transfer-level (RTL) implementation adds a
-second dimension. An RTL simulation produces cycle-accurate waveforms that
-can be compared automatically against a \emph{reference model} --- a
-software cache simulator written in a high-level language such as Python.
-If the RTL and the reference model agree on every outcome, the design is
-considered functionally correct with respect to that trace~\cite{patterson2020}.
+Trace-driven simulation---replaying a recorded or synthesised address
+sequence through a cache model---is the standard evaluation method.
+Smith~\cite{smith1982} showed it captures the interplay of block size,
+associativity, and replacement policy far more faithfully than analytical
+models. Hill and Smith~\cite{hill1989} used trace-driven simulation to
+compare hit rates across associativities, establishing the miss
+taxonomy (compulsory, capacity, conflict) used to design the trace suite
+in this project. At the RTL level, cycle-accurate simulation against a
+Python \emph{golden reference model} provides functional
+correctness verification~\cite{patterson2020}.
 
 % ======================================================================
 % SECTION III — PROPOSED SOLUTION
@@ -292,265 +272,351 @@ considered functionally correct with respect to that trace~\cite{patterson2020}.
 \section{Proposed Solution}
 \label{sec:solution}
 
-% ---- A: Member 1 -------------------------------------------------------
+Fig.~\ref{fig:block} shows the top-level architecture of the implemented
+cache sub-system; Fig.~\ref{fig:fsm} shows the FSM state-transition
+diagram. The subsections below describe each sub-system in turn.
+
+% ---- Top-level block diagram -----------------------------------------
+\begin{figure*}[!t]
+  \centering
+  \includegraphics[width=0.88\textwidth]{block_diagram.png}
+  \caption{Top-level block diagram of the direct-mapped cache system.
+           Shading indicates module ownership:
+           \textit{blue} = Niharika Chaudhary (storage),
+           \textit{orange} = Karan Chillar (FSM \& comparator),
+           \textit{green} = Harshita Joshi (memory interface \& integration).
+           The CPU-side interface exposes only six signals; all internal
+           handshakes are hidden inside the \texttt{cache\_top} wrapper.}
+  \label{fig:block}
+\end{figure*}
+
+% ---- A: Niharika Chaudhary -------------------------------------------
 \subsection{Address Mapping and Cache Storage}
+\label{sec:sol-a}
 
-\subsubsection{Address breakdown}
-For a cache of $C$ bytes with blocks of $B$ bytes and an $A$-bit address, the
-number of lines and the field widths are
+\subsubsection{Address Breakdown}
+
+For a cache of $C$ bytes with $B$-byte blocks and an $A$-bit address, the
+field widths are:
 \begin{align}
-N &= C/B, & b_{\mathrm{off}} &= \log_2 B,\\
-b_{\mathrm{idx}} &= \log_2 N, & b_{\mathrm{tag}} &= A - b_{\mathrm{idx}} - b_{\mathrm{off}}.
+  N             &= C/B,            &
+  b_\mathrm{off}&= \log_2 B,       \notag \\
+  b_\mathrm{idx}&= \log_2 N,       &
+  b_\mathrm{tag}&= A - b_\mathrm{idx} - b_\mathrm{off}.
+  \label{eq:fields}
 \end{align}
-With $C = 1024$, $B = 16$ and $A = 32$, this gives $N = 64$ lines, a 4-bit
-offset (2 word-select bits and 2 byte bits), a 6-bit index and a 22-bit tag
-(Table~\ref{tab:addr}). For example, address \texttt{0x12345678} decodes to
-tag \texttt{0x048D15}, index 39 and word 2.
+With $C = 1024$\,B, $B = 16$\,B, and $A = 32$, equation~\eqref{eq:fields}
+gives $N = 64$ lines, a 4-bit offset (2-bit word select + 2-bit byte
+offset), a 6-bit index, and a 22-bit tag (Table~\ref{tab:addr}).
 
-\begin{table}[t]
-\centering
-\caption{Address fields for the default configuration}
-\label{tab:addr}
-\begin{tabular}{lccc}
-\hline
-Field & Bits & Width & Selects \\
-\hline
-Tag      & [31:10] & 22 & Block identity \\
-Index    & [9:4]   & 6  & One of 64 lines \\
-Word     & [3:2]   & 2  & One of 4 words \\
-Byte     & [1:0]   & 2  & Unused (word access) \\
-\hline
-\end{tabular}
+\begin{table}[!t]
+  \centering
+  \caption{Address field breakdown for the default cache configuration}
+  \label{tab:addr}
+  \renewcommand{\arraystretch}{1.25}
+  \small
+  \begin{tabular}{@{}lccl@{}}
+    \toprule
+    \textbf{Field} & \textbf{Bits} & \textbf{Width} & \textbf{Selects} \\
+    \midrule
+    Tag        & {[}31:10{]}  & 22 & Block identity in memory \\
+    Index      & {[}9:4{]}    & 6  & One of 64 cache lines \\
+    Word       & {[}3:2{]}    & 2  & One of 4 words per line \\
+    Byte offset& {[}1:0{]}    & 2  & Unused (word-aligned accesses) \\
+    \bottomrule
+  \end{tabular}
 \end{table}
 
-The \texttt{address\_decoder} module is purely combinational. Its field
-widths are Verilog parameters derived from \texttt{CACHE\_SIZE},
-\texttt{BLOCK\_SIZE} and \texttt{ADDR\_WIDTH}, so the same RTL can be
-re-targeted for the Phase~II parameter sweep without editing code.
+\subsubsection{Storage Modules}
 
-\subsubsection{Storage organisation}
-The cache state is held in three structures, all indexed by the same 6-bit
-index:
+The cache state is split across three structures, all indexed by the
+same 6-bit index and read \emph{combinationally}:
+
 \begin{itemize}
-  \item \textbf{Data RAM (\texttt{data\_ram.v}):} $64 \times 128$ bits (four 32-bit words per line,
-        1\,KB). It supports a full-line write for refills and a single-word
-        write for write hits. If both are requested, the line write takes
-        priority.
-  \item \textbf{Tag RAM (\texttt{tag\_ram.v}):} $64 \times 22$ bits, written when a line is refilled.
-  \item \textbf{Valid-bit array (\texttt{valid\_ram.v}):} 64 bits, held as a register vector rather
-        than a RAM so that a synchronous reset or flush clears every line in
-        one cycle. After reset every access is a compulsory miss, even if a
-        stale tag happens to match.
+  \item \textbf{\texttt{data\_ram}:} $64 \times 128$-bit storage
+        (1\,KB). Supports a 128-bit full-line write (\texttt{we\_line})
+        for cache-line refill and a 32-bit single-word write
+        (\texttt{we\_word}) for write-through hits; line write takes
+        priority when both are asserted simultaneously.
+  \item \textbf{\texttt{tag\_ram}:} $64 \times 22$-bit storage.
+        Updated synchronously on the rising edge during line refill.
+  \item \textbf{\texttt{valid\_ram}:} 64-bit register vector (not a
+        RAM), enabling single-cycle synchronous reset or flush of all
+        valid bits. All lines are invalid after reset, guaranteeing
+        compulsory misses on first access regardless of uninitialised
+        tag values.
 \end{itemize}
-All three are read combinationally. The tag, valid bit and data for the
-current index are therefore available in the same cycle, and the comparator
-can compute $\mathit{hit} = \mathit{valid}[i] \wedge (\mathit{tag}[i] =
-\mathit{addr}_{\mathrm{tag}})$ in a single cycle. The storage holds
-$8192 + 1408 + 64 = 9664$ bits in total, so tag and valid bits add about 18\%
-on top of the 8192 data bits.
 
-% ---- B: Member 2 -------------------------------------------------------
-\subsection{Controller Finite State Machine and Tag Comparator}
-\label{sec:solution-m2}
+Because all three RAMs present the tag, valid bit, and data word in the
+same cycle as the index, the tag comparator can resolve a hit or miss
+combinationally, enabling the single-cycle fast path described in
+Section~\ref{sec:sol-b}.
 
-\subsubsection{Tag Comparator Architecture (\texttt{tag\_comparator.v})}
-The tag comparator performs high-speed, purely combinational equality
-checking between the tag stored in the cache line and the tag field of
-the incoming CPU byte address. To prevent false hits on stale data after
-power-on, reset, or line flushes, the comparator output is strictly gated
-by the valid bit stored in \texttt{valid\_ram}:
+% ---- B: Karan Chillar ------------------------------------------------
+\subsection{Controller FSM and Tag Comparator}
+\label{sec:sol-b}
+
+\subsubsection{Tag Comparator (\texttt{tag\_comparator.v})}
+
+The tag comparator generates the \texttt{hit} signal purely
+combinationally:
 \begin{equation}
-\mathrm{hit} = \mathrm{rvalid} \;\land\; (\mathrm{rtag} == \mathrm{tag}).
-\label{eq:hit-logic}
+  \mathrm{hit} = \mathrm{rvalid} \;\land\; (\mathrm{rtag} = \mathrm{tag}).
+  \label{eq:hit}
 \end{equation}
-In the default configuration, \texttt{tag} and \texttt{rtag} are 22 bits
-wide ($32 - 6 - 4$). If $\mathrm{rvalid} = 0$, $\mathrm{hit}$ is driven to
-$0$ immediately, guaranteeing that the first access to an uninitialised
-line generates a compulsory (cold) miss even if the uninitialised tag bits
-happen to match.
+Gating by \texttt{rvalid} prevents false hits on stale tag data
+after reset or line invalidation: if \texttt{rvalid}\,=\,0 then
+\texttt{hit}\,=\,0 regardless of the stored tag bits.
 
-\subsubsection{Controller FSM Architecture (\texttt{cache\_controller\_fsm.v})}
-The cache controller FSM manages the access sequence and memory
-handshakes according to a write-through, no-write-allocate policy.
-The FSM comprises five architecturally defined states:
-\begin{enumerate}
-    \item \textbf{IDLE (\texttt{3'b000})}: The resting state. When
-          $\texttt{cpu\_req} = 1$ and $\mathrm{hit} = 1$, the combinational
-          fast-path asserts $\texttt{cpu\_ready} = 1$ in the same clock cycle,
-          enabling single-cycle reads and write-throughs.
-    \item \textbf{COMPARE\_TAG (\texttt{3'b001})}: Entered on a miss from
-          \texttt{IDLE}. The CPU address, write data, and control signals are
-          latched into internal holding registers to maintain signal stability
-          throughout multi-cycle memory latency.
-    \item \textbf{ALLOCATE (\texttt{3'b010})}: The controller asserts
-          $\texttt{mem\_req} = 1$ to initiate a main-memory transaction.
-          For a read miss, the block-aligned address is driven to fetch the
-          full 128-bit line. For a write miss, the target word address and
-          write data are driven. The FSM remains in \texttt{ALLOCATE} until
-          the memory interface asserts $\texttt{mem\_ready} = 1$.
-    \item \textbf{UPDATE (\texttt{3'b011})}: Active solely for read misses.
-          Upon memory burst arrival, $\texttt{data\_we\_line} = 1$,
-          $\texttt{tag\_we} = 1$, and $\texttt{valid\_we} = 1$ are asserted
-          for exactly one clock cycle. Write misses bypass this state entirely
-          (no-write-allocate).
-    \item \textbf{RESPOND (\texttt{3'b100})}: Asserts $\texttt{cpu\_ready} = 1$
-          and returns to \texttt{IDLE}.
-\end{enumerate}
+\subsubsection{Controller FSM (\texttt{cache\_controller\_fsm.v})}
 
-\begin{table*}[t]
-\centering
-\caption{Cache Controller FSM State Transition and Output Matrix}
-\label{tab:fsm_transitions}
-\begin{tabular}{llccccccccc}
-\hline
-\textbf{Current} & \textbf{Condition} & \textbf{Next} & \texttt{cpu\_ready} & \texttt{cpu\_stall} & \texttt{tag\_we} & \texttt{valid\_we} & \texttt{data\_we\_w} & \texttt{data\_we\_l} & \texttt{mem\_req} & \texttt{mem\_wr} \\
-\hline
-\texttt{IDLE} & \texttt{!cpu\_req} & \texttt{IDLE} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
-\texttt{IDLE} & req \& hit \& !wr (Read Hit) & \texttt{IDLE} & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
-\texttt{IDLE} & req \& hit \& wr (Write Hit) & \texttt{IDLE} & 1 & 0 & 0 & 0 & 1 & 0 & 1 & 1 \\
-\texttt{IDLE} & req \& !hit (Miss) & \texttt{COMPARE\_TAG} & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
-\hline
-\texttt{COMPARE\_TAG} & miss & \texttt{ALLOCATE} & 0 & 1 & 0 & 0 & 0 & 0 & 1 & wr \\
-\hline
-\texttt{ALLOCATE} & !mem\_ready & \texttt{ALLOCATE} & 0 & 1 & 0 & 0 & 0 & 0 & 1 & wr \\
-\texttt{ALLOCATE} & mem\_ready \& !wr (Read) & \texttt{UPDATE} & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
-\texttt{ALLOCATE} & mem\_ready \& wr (Write) & \texttt{RESPOND} & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
-\hline
-\texttt{UPDATE} & 1-cycle RAM write & \texttt{RESPOND} & 0 & 1 & 1 & 1 & 0 & 1 & 0 & 0 \\
-\hline
-\texttt{RESPOND} & done & \texttt{IDLE} & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
-\hline
-\end{tabular}
+Fig.~\ref{fig:fsm} and Table~\ref{tab:fsm} detail the five-state
+synchronous FSM. The state encoding uses a 3-bit register
+(\texttt{state[2:0]}).
+
+\begin{figure*}[!t]
+  \centering
+  \includegraphics[width=0.88\textwidth]{fsm_diagram.png}
+  \caption{State transition diagram of the cache controller FSM.
+           The fast-path hit arc (green) completes in a single clock
+           cycle from \texttt{IDLE} without entering any multi-cycle
+           stall state. Read misses traverse
+           \texttt{IDLE}\,$\to$\,\texttt{COMPARE\_TAG}\,$\to$\,%
+           \texttt{ALLOCATE}\,$\to$\,\texttt{UPDATE}\,$\to$\,%
+           \texttt{RESPOND}. Write misses skip \texttt{UPDATE} under
+           the no-write-allocate policy (dashed arc).}
+  \label{fig:fsm}
+\end{figure*}
+
+\begin{table*}[!t]
+  \centering
+  \caption{Cache Controller FSM: State Transition and Output Control Matrix}
+  \label{tab:fsm}
+  \renewcommand{\arraystretch}{1.3}
+  \scriptsize
+  \setlength{\tabcolsep}{3pt}
+  \begin{tabular}{@{}llccccccccc@{}}
+    \toprule
+    \textbf{Current State} &
+    \textbf{Condition} &
+    \textbf{Next State} &
+    \texttt{cpu\_ready} &
+    \texttt{cpu\_stall} &
+    \texttt{tag\_we} &
+    \texttt{valid\_we} &
+    \texttt{dwe\_word} &
+    \texttt{dwe\_line} &
+    \texttt{mem\_req} &
+    \texttt{mem\_wr} \\
+    \midrule
+    \texttt{IDLE}        & no request              & \texttt{IDLE}        & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    \texttt{IDLE}        & req, hit, read          & \texttt{IDLE}        & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    \texttt{IDLE}        & req, hit, write         & \texttt{IDLE}        & 1 & 0 & 0 & 0 & 1 & 0 & 1 & 1 \\
+    \texttt{IDLE}        & req, miss               & \texttt{COMPARE\_TAG}& 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    \midrule
+    \texttt{COMPARE\_TAG}& miss                    & \texttt{ALLOCATE}    & 0 & 1 & 0 & 0 & 0 & 0 & 1 & \textit{s\_wr} \\
+    \midrule
+    \texttt{ALLOCATE}    & \texttt{!mem\_ready}    & \texttt{ALLOCATE}    & 0 & 1 & 0 & 0 & 0 & 0 & 1 & \textit{s\_wr} \\
+    \texttt{ALLOCATE}    & \texttt{mem\_ready}, read& \texttt{UPDATE}     & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    \texttt{ALLOCATE}    & \texttt{mem\_ready}, write& \texttt{RESPOND}   & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    \midrule
+    \texttt{UPDATE}      & (1 cycle)               & \texttt{RESPOND}     & 0 & 1 & 1 & 1 & 0 & 1 & 0 & 0 \\
+    \midrule
+    \texttt{RESPOND}     & (1 cycle)               & \texttt{IDLE}        & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    \bottomrule
+    \multicolumn{11}{@{}p{0.95\textwidth}@{}}{\footnotesize%
+      \textit{s\_wr} = \texttt{saved\_wr} (read/write mode latched in \texttt{IDLE}).
+      \texttt{dwe\_word} = \texttt{data\_we\_word};\;
+      \texttt{dwe\_line} = \texttt{data\_we\_line}.}
+  \end{tabular}
 \end{table*}
 
-% ---- C: Member 3 -------------------------------------------------------
-\subsection{Memory Interface Bridge and Top-Level Integration}
-\label{sec:proposed-m3}
-
-\subsubsection{Main-Memory Behavioural Model (\texttt{main\_memory.v})}
-The main memory is implemented as a parameterised behavioural model with a
-flat 64\,K-word (256\,KB) register array pre-initialised with predictable
-word-aligned data ($M[k] = 4k$). The module implements a 3-state controller
-(\texttt{IDLE} $\to$ \texttt{FIRST} $\to$ \texttt{BURST}):
 \begin{itemize}
-    \item \textbf{Block Read:} On \texttt{mem\_req} with \texttt{mem\_wr = 0},
-        it latches the block-aligned address and counts \texttt{MEM\_FIRST\_LAT}
-        cycles for word~0, followed by \texttt{MEM\_NEXT\_LAT} cycles each for
-        words 1 through 3. When all 4 words are assembled, \texttt{mem\_ready}
-        pulses for 1 cycle with the full 128-bit block on \texttt{mem\_rdata}.
-    \item \textbf{Single-Word Write:} On \texttt{mem\_wr = 1}, it waits
-        \texttt{MEM\_FIRST\_LAT} cycles, commits the 32-bit word to the array,
-        and pulses \texttt{mem\_ready}.
+  \item \textbf{IDLE (\texttt{3'b000}):} Default state. If
+        \texttt{cpu\_req}\,=\,1 and \texttt{hit}\,=\,1 the combinational
+        fast path asserts \texttt{cpu\_ready}\,=\,1 in the \emph{same}
+        cycle; for a write hit it also asserts \texttt{data\_we\_word}
+        and forwards the write to memory (\texttt{mem\_req},
+        \texttt{mem\_wr}).
+  \item \textbf{COMPARE\_TAG (\texttt{3'b001}):} Entered on a miss from
+        \texttt{IDLE}. The CPU address, write data, and
+        read/write control are latched into internal registers
+        (\texttt{saved\_addr}, \texttt{saved\_wdata},
+        \texttt{saved\_wr}) to protect them from bus changes during
+        multi-cycle stalls.
+  \item \textbf{ALLOCATE (\texttt{3'b010}):} Asserts \texttt{mem\_req}.
+        For a read miss the block-aligned address
+        $\{\mathrm{tag},\,\mathrm{index},\,4'\mathrm{b}0000\}$ is
+        driven; for a write miss the word address and data are driven
+        (\texttt{mem\_wr}\,=\,1). The FSM holds this state until
+        \texttt{mem\_ready}\,=\,1.
+  \item \textbf{UPDATE (\texttt{3'b011}):} Active only for read misses.
+        Asserts \texttt{data\_we\_line}\,=\,1,
+        \texttt{tag\_we}\,=\,1, and \texttt{valid\_we}\,=\,1 for one
+        cycle to write the refilled 128-bit block, update the tag RAM,
+        and mark the line valid. Write misses bypass this state entirely.
+  \item \textbf{RESPOND (\texttt{3'b100}):} Asserts
+        \texttt{cpu\_ready}\,=\,1 for one cycle to signal completion,
+        then returns unconditionally to \texttt{IDLE}.
 \end{itemize}
 
+The cycle-by-cycle latencies are:
+\begin{itemize}
+  \item \textbf{Read hit:} 1 cycle (combinational fast path, no state change).
+  \item \textbf{Write hit:} 1 cycle (cache update + write-through dispatch in parallel).
+  \item \textbf{Read miss:} $1 + 1 + 13 + 1 + 1 = 17$ cycles total
+        (\texttt{IDLE}/\texttt{COMPARE\_TAG}/\texttt{ALLOCATE}/\texttt{UPDATE}/\texttt{RESPOND});
+        CPU stall lasts 16 cycles.
+  \item \textbf{Write miss:} $1 + 10 + 1 = 12$--$17$ cycles
+        (memory write latency only; no \texttt{UPDATE}).
+\end{itemize}
+
+% ---- C: Harshita Joshi -----------------------------------------------
+\subsection{Memory Interface and Top-Level Integration}
+\label{sec:sol-c}
+
+\subsubsection{Behavioural Main-Memory Model (\texttt{main\_memory.v})}
+
+A 64\,K-word (256\,KB) flat register array pre-initialised with
+$M[k] = 4k$ (word-aligned byte addresses) models DRAM timing. A
+3-state internal FSM (\texttt{IDLE\,$\to$\,FIRST\,$\to$\,BURST})
+counts \texttt{MEM\_FIRST\_LAT}\,=\,10 cycles for the first word,
+then \texttt{MEM\_NEXT\_LAT}\,=\,1 cycle per subsequent word. When
+all four words of a block are assembled, \texttt{mem\_ready} pulses
+for one cycle with the full 128-bit block on \texttt{mem\_rdata}.
+Write requests wait \texttt{MEM\_FIRST\_LAT} cycles then commit the
+32-bit word and pulse \texttt{mem\_ready}.
+
 \subsubsection{Memory Interface Bridge (\texttt{mem\_interface.v})}
-The memory interface decouples the controller FSM from main memory timing. It
-latches outgoing requests at the \texttt{IDLE} $\to$ \texttt{BUSY} transition,
-asserts \texttt{mm\_req} for one cycle to initiate memory access, holds address
-and write-data stable, and routes the returned 128-bit line combinationally
-to \texttt{data\_ram.wdata\_line} via \texttt{refill\_data}.
 
-Crucially, \texttt{fsm\_mem\_ready} is gated by the interface state
-($\texttt{mm\_ready} \wedge \texttt{mi\_state == BUSY}$). Because \texttt{mm\_req}
-is de-asserted once accepted, spurious re-triggering is completely prevented
-when the FSM transitions from \texttt{ALLOCATE} to \texttt{UPDATE}.
+The bridge decouples the controller FSM from raw DRAM timing. Its
+two-state (\texttt{IDLE}/\texttt{BUSY}) FSM latches the outgoing
+request at the \texttt{IDLE\,$\to$\,BUSY} transition, asserts
+\texttt{mm\_req} for one cycle to avoid spurious re-triggering, and
+routes the returned 128-bit block combinationally to
+\texttt{data\_ram.wdata\_line}. The ready signal is gated:
+$\texttt{fsm\_mem\_ready} = \texttt{mm\_ready} \wedge
+(\texttt{mi\_state} = \texttt{BUSY})$, ensuring the FSM advances
+to \texttt{UPDATE} exactly once per miss.
 
-\subsubsection{Top-Level Integration (\texttt{cache\_top.v})}
-\texttt{cache\_top} connects all eight sub-modules into a cohesive system,
-exposing only CPU-side signals:
+\subsubsection{Top-Level Wrapper (\texttt{cache\_top.v})}
+
+\texttt{cache\_top} instantiates and connects all eight sub-modules,
+exposing only the CPU-side interface:
+{\small
 \begin{equation}
-    \{\texttt{clk},\, \texttt{rst},\, \texttt{cpu\_req},\, \texttt{cpu\_wr},\, \texttt{cpu\_addr},\, \texttt{cpu\_wdata}\}
-    \longrightarrow
-    \{\texttt{cpu\_rdata},\, \texttt{cpu\_ready}\}
+  \begin{split}
+  &\underbrace{\{\texttt{clk},\,\texttt{rst},\,\texttt{cpu\_req},\,
+  \texttt{cpu\_wr},\,\texttt{cpu\_addr},\,\texttt{cpu\_wdata}\}}_{\text{inputs}}\\
+  &\qquad\longrightarrow\;
+  \underbrace{\{\texttt{cpu\_rdata},\,\texttt{cpu\_ready}\}}_{\text{outputs}}.
+  \end{split}
+  \label{eq:iface}
 \end{equation}
+}
 
-% ---- D: Member 4 -------------------------------------------------------
+% ---- D: Shreshtha Gupta ----------------------------------------------
 \subsection{Verification Methodology and Trace Design}
-\label{sec:m4-solution}
+\label{sec:sol-d}
 
 \subsubsection{Trace Generation}
-Four trace types are generated by \texttt{scripts/gen\_traces.py} to target
-each miss category and produce a spread of hit rates.
-Table~\ref{tab:traces} summarises the patterns and their expected behaviour.
 
-\begin{table}[t]
-\centering
-\caption{Trace types and expected hit rates (1\,KB cache, 16\,B blocks)}
-\label{tab:traces}
-\begin{tabular}{llcc}
-\hline
-\textbf{Trace} & \textbf{Pattern} & \textbf{Exp.\ Hit Rate} & \textbf{Miss Type}\\
-\hline
-Sequential  & Linear word scan       & $\approx 75\%$ & Compulsory \\
-Loop        & Small loop, 2+ passes  & $\approx 94\%$ & Compulsory \\
-Random      & Uniform 32-bit range   & $\approx 0\%$  & Capacity \\
-Conflict    & Stride = cache size    & $\approx 0\%$  & Conflict \\
-\hline
-\end{tabular}
+Four trace types are generated by \texttt{scripts/gen\_traces.py},
+one for each class of cache miss (Table~\ref{tab:traces}):
+
+\begin{table}[!t]
+  \centering
+  \caption{Trace types, access counts, and expected hit-rate ranges}
+  \label{tab:traces}
+  \renewcommand{\arraystretch}{1.25}
+  \small
+  \begin{tabular}{@{}llcc@{}}
+    \toprule
+    \textbf{Trace} & \textbf{Access Pattern} &
+    \textbf{Accesses} & \textbf{Expected Hit Rate} \\
+    \midrule
+    Sequential & Linear word scan      & 200 & $\approx 75\%$ \\
+    Loop       & Repeated small loop   & 324 & $\approx 94\%$ \\
+    Random     & Uniform 32-bit range  & 200 & $\approx 0\%$  \\
+    Conflict   & Stride = cache size   & 200 & $\approx 0\%$  \\
+    \bottomrule
+  \end{tabular}
 \end{table}
 
-\subsubsection{Python Reference Model}
-A bit-accurate Python reference model (\texttt{scripts/ref\_model.py}) mirrors
-all RTL cache parameters. It maintains a software dictionary keyed by index,
-storing the valid bit and tag for each line. For every address in the trace it
-performs the same tag/index decomposition as the hardware and records a hit or
-miss. If the RTL and the reference model agree on every outcome, the design is
-considered functionally correct with respect to that trace.
+\begin{itemize}
+  \item \textbf{Sequential:} Word-by-word linear scan. Each 16-byte
+        block yields one compulsory miss then three spatial-locality
+        hits: steady-state hit rate $= 3/4 = 75\%$.
+  \item \textbf{Loop:} A small working set (fitting in distinct cache
+        lines) is traversed repeatedly. First-pass compulsory misses
+        convert to 100\% temporal-locality hits on subsequent passes.
+  \item \textbf{Random:} Addresses drawn uniformly from a range much
+        larger than the 1\,KB cache, stressing capacity misses.
+  \item \textbf{Conflict:} Pairs of addresses separated by exactly
+        $1024 = 2^{10}$ bytes share the same 6-bit index, alternately
+        evicting each other (ping-pong thrashing, hit rate $\approx 0\%$).
+\end{itemize}
 
-\subsubsection{End-to-End Verification Flow}
-\begin{enumerate}
-  \item \textbf{Generate} -- \texttt{gen\_traces.py} produces four \texttt{.mem} trace files.
-  \item \textbf{Reference} -- \texttt{ref\_model.py} run on each trace; logs stored in \texttt{results/}.
-  \item \textbf{Simulate} -- \texttt{scripts/verify\_m2.py} and \texttt{verify\_all\_traces.py}
-        run a cycle-accurate behavioural Python model against all 924 accesses.
-  \item \textbf{Compare} -- Bit-accurate match confirmed; 97/97 FSM functional checks pass.
-\end{enumerate}
+\subsubsection{Python Reference Model and Verification Flow}
 
-% ---- E: Member 5 -------------------------------------------------------
-\subsection{Analysis Plan: AMAT Calculation and Synthesis}
-\label{sec:analysis-m5}
+A bit-accurate Python reference model (\texttt{scripts/ref\_model.py})
+mirrors all RTL cache parameters. It decomposes every trace address
+into tag, index, and offset, maintains a software copy of the 64-line
+state (valid bit + tag), and records the expected hit or miss.
+Discrepancies between the model and the RTL signal Verilog bugs, not
+model errors.
 
-\subsubsection{AMAT Calculation Framework}
-The Average Memory Access Time is computed using the standard formula:
-\begin{equation}
-\mathrm{AMAT} = t_{\mathrm{hit}} + (1 - h) \cdot t_{\mathrm{penalty}},
-\label{eq:amat}
-\end{equation}
-where $h$ is the measured hit rate, $t_{\mathrm{hit}} = 1$ cycle (single-cycle
-combinational hit path), and $t_{\mathrm{penalty}}$ is the total miss
-penalty incurred per read miss:
+The end-to-end verification flow is: (1)~generate traces; (2)~run
+the reference model, logging per-access outcomes to
+\texttt{results/ref\_*.log}; (3)~run the cycle-accurate behavioural
+RTL simulator (\texttt{scripts/verify\_m2.py},
+\texttt{verify\_all\_traces.py}); (4)~confirm bit-accurate agreement.
+
+% ---- E: Soumya Tiwari ------------------------------------------------
+\subsection{AMAT Analysis and Synthesis}
+\label{sec:sol-e}
+
+\subsubsection{AMAT Computation}
+
+Using equation~\eqref{eq:amat-basic} with $t_{\mathrm{hit}} = 1$ cycle
+and $t_{\mathrm{penalty}} = 16$ stall cycles:
 \begin{align}
-t_{\mathrm{penalty}} &= t_{\mathrm{COMPARE\_TAG}} + t_{\mathrm{mem\_burst}} + t_{\mathrm{UPDATE}} + t_{\mathrm{RESPOND}} \notag \\
-                     &= 1 + 13 + 1 + 1 = 16 \text{ stall cycles.}
+  t_{\mathrm{penalty}} &=
+  \underbrace{1}_{\text{\scriptsize\texttt{COMPARE\_TAG}}} +
+  \underbrace{13}_{\text{\scriptsize DRAM burst}} \notag \\
+  &\quad +
+  \underbrace{1}_{\text{\scriptsize\texttt{UPDATE}}} +
+  \underbrace{1}_{\text{\scriptsize\texttt{RESPOND}}}
+  = 16\;\text{stall cycles.}
+  \label{eq:penalty}
 \end{align}
-The main-memory burst term $t_{\mathrm{mem\_burst}} = \texttt{MEM\_FIRST\_LAT}
-+ (\texttt{WORDS\_PER\_BLK} - 1) \times \texttt{MEM\_NEXT\_LAT}
-= 10 + 3 \times 1 = 13$ cycles.
 
-\subsubsection{Synthesis Estimation (Yosys)}
+\subsubsection{Synthesis Resource Estimation}
+
 Yosys logic synthesis of the M1 storage modules confirms the expected
-register bit counts. A full FPGA place-and-route synthesis (Xilinx Vivado
-or Intel Quartus) targeting a Xilinx Artix-7 (xc7a35t) is planned for
-Phase~II; estimated resource usage is summarised in
-Table~\ref{tab:synth}.
+register bit counts. Full FPGA synthesis (Xilinx Artix-7
+\texttt{xc7a35t}) is targeted in Phase~II; estimated resource usage is
+shown in Table~\ref{tab:synth}.
 
-\begin{table}[t]
-\centering
-\caption{Estimated FPGA resource utilisation (Yosys / Artix-7 target)}
-\label{tab:synth}
-\begin{tabular}{lcc}
-\hline
-\textbf{Resource} & \textbf{Estimated} & \textbf{Notes} \\
-\hline
-Data RAM bits    & 8192  & 64 lines $\times$ 128 bits \\
-Tag RAM bits     & 1408  & 64 lines $\times$ 22 bits \\
-Valid-bit array  & 64    & 64-bit register vector \\
-FSM state reg.   & 3     & \texttt{3'b000}--\texttt{3'b100} \\
-LUTs (comb.)     & $\sim$80 & Decoder + comparator + FSM outputs \\
-FFs  (seq.)      & $\sim$190 & RAMs + FSM state + latches \\
-$F_{\max}$ est.  & $>$100\,MHz & Short critical path (comb.\ hit) \\
-\hline
-\end{tabular}
+\begin{table}[!t]
+  \centering
+  \caption{Estimated FPGA resource utilisation (Xilinx Artix-7 target)}
+  \label{tab:synth}
+  \renewcommand{\arraystretch}{1.25}
+  \small
+  \begin{tabular}{@{}lcP{3.1cm}@{}}
+    \toprule
+    \textbf{Resource} & \textbf{Count / Value} & \textbf{Notes} \\
+    \midrule
+    Data RAM bits    & 8\,192  & $64 \times 128\,\mathrm{b}$ \\
+    Tag RAM bits     & 1\,408  & $64 \times 22\,\mathrm{b}$ \\
+    Valid-bit register & 64   & 64-bit vector; single-cycle flush \\
+    FSM state reg.   & 3\,FF  & \texttt{3'b000}--\texttt{3'b100} \\
+    LUTs (est.)      & ${\sim}80$ & Decoder + comparator + FSM comb.\ \\
+    FFs  (est.)      & ${\sim}190$& RAMs + FSM + request latch \\
+    $F_{\max}$ (est.)& $>100\,\mathrm{MHz}$ & Short comb.\ hit path \\
+    \bottomrule
+  \end{tabular}
 \end{table}
 
 % ======================================================================
@@ -559,79 +625,107 @@ $F_{\max}$ est.  & $>$100\,MHz & Short critical path (comb.\ hit) \\
 \section{Results and Discussion}
 \label{sec:results}
 
-\subsection{Hit Rate and Miss Rate Results}
+\subsection{Hit Rate and AMAT Results}
 
-The Python reference model and the cycle-accurate RTL behavioural model
-are run on all four traces. Table~\ref{tab:amat} reports the measured
-hit rates, miss rates, and computed AMAT values. All RTL results are a
-bit-accurate match with the reference model across all 924 accesses
-($4/4$ traces, 100\% agreement).
+Table~\ref{tab:amat} presents the hit rates, miss rates, and AMAT values
+measured by the Python reference model and confirmed bit-accurately by
+the cycle-accurate RTL behavioural model across all 924 accesses
+(4/4 traces, 100\% agreement).
 
-\begin{table*}[t]
-\centering
-\caption{Hit/Miss rates and AMAT results for all four traces
-         ($t_{\mathrm{hit}} = 1$ cycle, $t_{\mathrm{penalty}} = 16$ cycles)}
-\label{tab:amat}
-\begin{tabular}{lcccccc}
-\hline
-\textbf{Trace} & \textbf{Accesses} & \textbf{Hits} & \textbf{Misses}
-               & \textbf{Hit Rate} & \textbf{Miss Rate} & \textbf{AMAT (cycles)} \\
-\hline
-Sequential  & 200 & 150 &  50 & 75.00\% & 25.00\% & $1 + 0.25 \times 16 = \mathbf{5.00}$ \\
-Loop        & 324 & 305 &  19 & 94.14\% &  5.86\% & $1 + 0.0586 \times 16 = \mathbf{1.94}$ \\
-Random      & 200 &   0 & 200 &  0.00\% & 100.00\% & $1 + 1.00 \times 16 = \mathbf{17.00}$ \\
-Conflict    & 200 &   0 & 200 &  0.00\% & 100.00\% & $1 + 1.00 \times 16 = \mathbf{17.00}$ \\
-\hline
-\textbf{Total} & \textbf{924} & \textbf{455} & \textbf{469} & 49.24\% & 50.76\% & --- \\
-\hline
-\end{tabular}
-\end{table*}
+\begin{table}[!t]
+  \centering
+  \caption{Measured hit/miss rates and computed AMAT for all four traces
+           ($t_{\mathrm{hit}} = 1$ cycle, $t_{\mathrm{penalty}} = 16$ cycles)}
+  \label{tab:amat}
+  \renewcommand{\arraystretch}{1.4}
+  \resizebox{\columnwidth}{!}{%
+  \begin{tabular}{@{}lcccccc@{}}
+    \toprule
+    \textbf{Trace} &
+    \textbf{Accesses} &
+    \textbf{Hits} &
+    \textbf{Misses} &
+    \textbf{Hit Rate} &
+    \textbf{Miss Rate} &
+    \textbf{AMAT (cycles)} \\
+    \midrule
+    Sequential
+      & 200 & 150 &  50
+      & 75.00\% & 25.00\%
+      & $1 + 0.25 \times 16 = \mathbf{5.00}$ \\
+    Loop
+      & 324 & 305 &  19
+      & 94.14\% &  5.86\%
+      & $1 + 0.0586 \times 16 = \mathbf{1.94}$ \\
+    Random
+      & 200 &   0 & 200
+      &  0.00\% & 100.00\%
+      & $1 + 1.00 \times 16 = \mathbf{17.00}$ \\
+    Conflict
+      & 200 &   0 & 200
+      &  0.00\% & 100.00\%
+      & $1 + 1.00 \times 16 = \mathbf{17.00}$ \\
+    \midrule
+    \textbf{Total / Weighted avg.}
+      & \textbf{924} & \textbf{455} & \textbf{469}
+      & 49.24\% & 50.76\%
+      & --- \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
 
-\subsection{Discussion of Results}
+\subsection{Discussion}
 
-\textbf{Sequential trace (AMAT = 5.00 cycles):}
-Each 16-byte cache line holds 4 words. A linear word-by-word scan incurs
-one compulsory miss per block followed by three spatial-locality hits,
-giving a steady-state hit rate of $3/4 = 75\%$ and an AMAT of 5.00 cycles.
-This demonstrates that the cache effectively captures spatial locality.
+\textbf{Sequential trace (AMAT = 5.00\,cycles).}
+A linear word-by-word scan incurs one compulsory miss per 16-byte block
+followed by three spatial-locality hits ($3/4 = 75\%$ hit rate). The
+AMAT of 5.00 cycles confirms that the cache effectively captures
+spatial locality: performance is $17/5 = 3.4\times$ better than the
+all-miss baseline.
 
-\textbf{Loop trace (AMAT = 1.94 cycles):}
-A small loop with a working set smaller than 1\,KB experiences compulsory
-misses only on the first pass. All subsequent iterations are temporal-locality
-hits, driving the hit rate to 94.14\% and AMAT to 1.94 cycles --- nearly
-ideal performance.
+\textbf{Loop trace (AMAT = 1.94\,cycles).}
+A small working set that fits within distinct cache lines incurs
+compulsory misses only on the first pass; every subsequent access is a
+temporal-locality hit. The resulting 94.14\% hit rate gives an AMAT of
+1.94\,cycles---near-ideal performance and only $1.94\times$ the
+theoretical minimum of 1\,cycle.
 
-\textbf{Random trace (AMAT = 17.00 cycles):}
-Random addresses drawn from the full 32-bit space far exceed the cache
-capacity ($2^{32}$ addresses vs.\ 64 lines). With no temporal or spatial
-locality, the hit rate drops to 0.00\% and AMAT reaches the theoretical
-maximum of $1 + 16 = 17$ cycles. This highlights the fundamental limitation
-of a 1\,KB direct-mapped cache against adversarial workloads.
+\textbf{Random trace (AMAT = 17.00\,cycles).}
+Random addresses drawn from the full 32-bit space yield a 0\% hit rate:
+the probability that a random access finds a valid matching line in
+only 64 cache lines is negligible. The AMAT equals the all-miss
+worst case of 17\,cycles. This highlights that a 1\,KB direct-mapped
+cache is ineffective against workloads with no temporal or spatial
+locality.
 
-\textbf{Conflict trace (AMAT = 17.00 cycles):}
-Addresses separated by exactly $1\,\mathrm{KB} = 2^{10}$ bytes share the
-same 6-bit index field. Alternating between two such addresses causes each
-access to evict the line loaded by the previous one (ping-pong thrashing),
-yielding a 0.00\% hit rate and maximum AMAT. This is the most significant
-pathology of direct-mapped caches and motivates set-associativity in Phase~II.
+\textbf{Conflict trace (AMAT = 17.00\,cycles).}
+Addresses separated by exactly $2^{10}$\,bytes ($=1\,$KB) share the
+same 6-bit index. Alternating between two such addresses causes each
+access to evict the line loaded by the previous one (ping-pong
+thrashing), driving the hit rate to exactly 0\% and AMAT to its maximum
+value. This is the defining pathology of direct-mapped caches and
+directly motivates 2-way set-associativity in Phase~II.
 
 \subsection{Verification Summary}
 
-All functional correctness checks pass:
+All correctness checks pass with no failures:
 \begin{itemize}
-  \item \textbf{M1 Unit Tests:} 2012 address-decoder field checks;
-        266 data-RAM word read-backs; 68 tag-RAM checks; 196 valid-bit checks.
-  \item \textbf{M2 Verification:} 97/97 FSM functional assertions pass
-        across reset, read hit, read miss, write hit, and write miss scenarios.
-  \item \textbf{M2 Integration:} M1+M2 pipeline verified over 6 integration
-        scenarios including cold miss, spatial locality, write hit, temporal
+  \item \textbf{Storage unit tests (Niharika Chaudhary):}
+        2\,012 address-decoder field checks; 266 data-RAM word read-backs
+        (including partial writes and priority); 68 tag-RAM checks; 196
+        valid-bit checks (reset, flush, write-priority).
+  \item \textbf{FSM verification (Karan Chillar):}
+        97/97 functional assertions covering reset, read hit, read miss,
+        write hit, write miss, and back-to-back accesses.
+  \item \textbf{M1+FSM pipeline integration (Karan Chillar):}
+        6/6 scenarios: cold miss, spatial locality, write hit, temporal
         hit, conflict miss, and re-access after eviction.
-  \item \textbf{M4 Trace Verification:} 4/4 traces, 924 accesses, 100\%
-        bit-accurate match between the RTL behavioural model and the Python
-        reference model.
-  \item \textbf{M3 Integration:} \texttt{tb\_cache\_top.v} validates the
-        complete 8-module system over cold misses, spatial locality hits,
-        write-through, no-write-allocate, and conflict-miss thrashing.
+  \item \textbf{Trace verification (Shreshtha Gupta):}
+        4/4 traces, 924 accesses, 100\% bit-accurate match.
+  \item \textbf{Full-system integration (Harshita Joshi):}
+        \texttt{tb\_cache\_top.v} validates cold misses, spatial locality,
+        write-through, no-write-allocate, and conflict-miss thrashing
+        over the complete 8-module \texttt{cache\_top} hierarchy.
 \end{itemize}
 
 % ======================================================================
@@ -640,87 +734,109 @@ All functional correctness checks pass:
 \section{Individual Contributions}
 \label{sec:contributions}
 
-Table~\ref{tab:contributions} summarises the deliverables and
-responsibilities of each team member.
-
-\begin{table}[t]
-\centering
-\caption{Individual team member contributions}
-\label{tab:contributions}
-\begin{tabular}{p{0.8cm}p{3.2cm}p{3.2cm}}
-\hline
-\textbf{Member} & \textbf{Role} & \textbf{Key Deliverables} \\
-\hline
-M1 & Cache Architecture \& Storage &
-  \texttt{address\_decoder.v}, \texttt{data\_ram.v}, \texttt{tag\_ram.v},
-  \texttt{valid\_ram.v}, \texttt{interfaces.md}, block diagram, unit
-  testbenches, \texttt{m1.tex} \\
-\hline
-M2 & Controller FSM \& Tag Comparator &
-  \texttt{tag\_comparator.v}, \texttt{cache\_controller\_fsm.v},
-  FSM diagram, \texttt{verify\_m2.py}, \texttt{verify\_all\_traces.py},
-  \texttt{m2.tex}, interview prep \\
-\hline
-M3 & Memory Interface \& Top-Level Integration &
-  \texttt{main\_memory.v}, \texttt{mem\_interface.v}, \texttt{cache\_top.v},
-  integration testbenches, \texttt{m3.tex} \\
-\hline
-M4 & Verification \& Traces &
-  \texttt{gen\_traces.py}, \texttt{ref\_model.py}, 4 trace files,
-  \texttt{cache\_tb.v}, \texttt{m4\_verification.tex} \\
-\hline
-M5 & Analysis, Synthesis \& Documentation Lead &
-  \texttt{analysis.py}, AMAT tables, synthesis estimate,
-  master IEEE report (\texttt{report.tex}), README \\
-\hline
-\end{tabular}
+\begin{table}[!t]
+  \centering
+  \caption{Team member contributions}
+  \label{tab:contrib}
+  \renewcommand{\arraystretch}{1.3}
+  \footnotesize
+  \begin{tabular}{@{}P{1.9cm}P{1.9cm}P{4.1cm}@{}}
+    \toprule
+    \textbf{Name} & \textbf{Area} & \textbf{Key Deliverables} \\
+    \midrule
+    Niharika Chaudhary &
+      Storage \& Architecture &
+      \texttt{address\_decoder.v}, \texttt{data\_ram.v},
+      \texttt{tag\_ram.v}, \texttt{valid\_ram.v},
+      \texttt{interfaces.md}, block diagram, unit testbenches \\
+    \midrule
+    Karan Chillar &
+      Controller FSM \& Comparator &
+      \texttt{tag\_comparator.v},
+      \texttt{cache\_controller\_fsm.v},
+      FSM diagram, Python verification suite,
+      trace verification \\
+    \midrule
+    Harshita Joshi &
+      Memory Interface \& Integration &
+      \texttt{main\_memory.v},
+      \texttt{mem\_interface.v},
+      \texttt{cache\_top.v},
+      integration testbenches \\
+    \midrule
+    Shreshtha Gupta &
+      Verification \& Traces &
+      \texttt{gen\_traces.py},
+      \texttt{ref\_model.py},
+      4 trace files,
+      \texttt{cache\_tb.v} \\
+    \midrule
+    Soumya Tiwari &
+      Analysis \& Documentation &
+      \texttt{analysis.py},
+      AMAT tables, synthesis estimate,
+      master IEEE report (\texttt{report.tex}),
+      README \\
+    \bottomrule
+  \end{tabular}
 \end{table}
+
+Table~\ref{tab:contrib} details each team member's ownership and
+deliverables.
 
 % ======================================================================
 % SECTION VI — CONCLUSION
 % ======================================================================
+\FloatBarrier
 \section{Conclusion}
 \label{sec:conclusion}
 
 This paper has presented a fully parameterised, synthesisable
 direct-mapped cache controller implemented in Verilog and verified
-through trace-driven simulation. The key design goals --- single-cycle
-hit latency, clean FSM-based control, and strict compliance with
-write-through / no-write-allocate policy --- have all been met and
-verified against a Python reference model.
+through trace-driven simulation. All primary design goals have been
+met: a single-cycle hit latency via combinational tag comparison, a
+clean five-state FSM implementing write-through / no-write-allocate
+policy, and bit-accurate functional correctness across a diverse
+four-trace benchmark suite.
 
-The measured results confirm the theoretical predictions: the loop trace
-achieves near-ideal AMAT (1.94 cycles) through temporal locality, while
-the conflict trace reveals the fundamental weakness of direct mapping
-(AMAT = 17.00 cycles under ping-pong thrashing). These findings directly
-motivate the Phase~II extensions:
+The experimental results quantitatively confirm theoretical predictions.
+The loop trace achieves near-ideal AMAT of 1.94\,cycles under temporal
+locality, while the conflict trace reveals the defining weakness of
+direct mapping (AMAT = 17.00\,cycles under ping-pong thrashing). These
+findings directly motivate the following Phase~II extensions:
+
 \begin{enumerate}
-  \item \textbf{Set-associativity} (2-way or 4-way) to eliminate
-        conflict misses at the cost of a simple LRU replacement policy.
-  \item \textbf{Write-back policy} with dirty bits to reduce write-bus
-        traffic at the cost of additional eviction states in the FSM.
-  \item \textbf{Parameter sweep} over cache sizes (512\,B to 8\,KB)
-        and block sizes (8\,B to 64\,B) to generate AMAT vs.\ resource
-        trade-off curves using Yosys and Vivado synthesis.
+  \item \textbf{2-way set-associativity} with LRU replacement to
+        eliminate conflict misses at the cost of a simple replacement
+        policy and one additional tag comparison.
+  \item \textbf{Write-back policy} with per-line dirty bits to reduce
+        memory-bus traffic, requiring additional eviction states in the
+        FSM.
+  \item \textbf{Parameter sweep} across cache sizes (512\,B to 8\,KB)
+        and block sizes (8\,B to 64\,B), generating AMAT vs.\ resource
+        trade-off curves using Yosys and Xilinx Vivado synthesis.
 \end{enumerate}
 
 The complete RTL, testbenches, verification scripts, and traces are
-hosted in the team's GitHub repository (\texttt{NullInTheHead/risc-takers-cache-controller}),
-enabling reproducible evaluation of all results reported in this paper.
+publicly available at
+\url{https://github.com/NullInTheHead/risc-takers-cache-controller},
+enabling full reproducibility of all results reported in this paper.
 
 % ======================================================================
 % REFERENCES
 % ======================================================================
+\newpage
 \begin{thebibliography}{9}
 
 \bibitem{smith1982}
-A.~J. Smith, ``Cache memories,'' \emph{ACM Computing Surveys}, vol.~14,
-no.~3, pp.~473--530, Sep.\ 1982.
+A.~J. Smith, ``Cache memories,''
+\emph{ACM Computing Surveys},
+vol.~14, no.~3, pp.~473--530, Sep.\ 1982.
 
 \bibitem{hill1989}
 M.~D. Hill and A.~J. Smith, ``Evaluating associativity in CPU caches,''
-\emph{IEEE Transactions on Computers}, vol.~38, no.~12, pp.~1612--1630,
-Dec.\ 1989.
+\emph{IEEE Transactions on Computers},
+vol.~38, no.~12, pp.~1612--1630, Dec.\ 1989.
 
 \bibitem{jouppi1990}
 N.~P. Jouppi, ``Improving direct-mapped cache performance by the addition
@@ -729,15 +845,18 @@ of a small fully-associative cache and prefetch buffers,'' in
 (ISCA)}, Pittsburgh, PA, USA, 1990, pp.~364--373.
 
 \bibitem{hennessy2017}
-J.~L. Hennessy and D.~A. Patterson, \emph{Computer Architecture: A
-Quantitative Approach}, 6th~ed.\ Cambridge, MA, USA: Morgan Kaufmann,
-2017.
+J.~L. Hennessy and D.~A. Patterson,
+\emph{Computer Architecture: A Quantitative Approach}, 6th~ed.\
+Cambridge, MA, USA: Morgan Kaufmann, 2017.
 
 \bibitem{patterson2020}
-D.~A. Patterson and J.~L. Hennessy, \emph{Computer Organization and
-Design RISC-V Edition: The Hardware Software Interface}, 2nd~ed.\
+D.~A. Patterson and J.~L. Hennessy,
+\emph{Computer Organization and Design RISC-V Edition:
+The Hardware Software Interface}, 2nd~ed.\
 San Francisco, CA, USA: Morgan Kaufmann, 2020.
 
 \end{thebibliography}
+
+\balance   % balance the two columns on the last page
 
 \end{document}
