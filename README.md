@@ -163,7 +163,7 @@ $$\text{AMAT} = t_{\text{hit}} + \text{Miss Rate} \times t_{\text{penalty}} = 1 
 ## 6. Project Documentation & Deliverables
 
 * **Prototype Video Demonstration:** [Watch Video Demo (Google Drive)](https://drive.google.com/file/d/1ceX4_QyjNYQM-hh1mGNlkBPhGlVPJafL/view?usp=sharing)
-* **Interactive Waveform Analyzer:** Open [`docs/waveform_viewer.html`](docs/waveform_viewer.html) in any browser to inspect cycle-accurate signal waveforms across all 5 operational scenarios (Read Hit, Read Miss Burst, Write Hit, Write Miss, and Conflict Thrashing).
+* **Interactive Waveform Analyzer (Live Web Demo):** [Launch Live Waveform Viewer](https://nullinthehead.github.io/risc-takers-cache-controller/) (or open [`docs/waveform_viewer.html`](docs/waveform_viewer.html) locally) to inspect cycle-accurate signal waveforms across all 5 operational scenarios (Read Hit, Read Miss Burst, Write Hit, Write Miss, and Conflict Thrashing).
 * **IEEE Conference Report:** Full 6-page manuscript formatted with `IEEEtran` available at [`docs/report.pdf`](docs/report.pdf) (LaTeX source: [`docs/report.tex`](docs/report.tex)).
 * **System Architecture Diagram:** [`docs/figures/block_diagram.pdf`](docs/figures/block_diagram.pdf).
 * **FSM State Diagram:** [`docs/figures/fsm_diagram.png`](docs/figures/fsm_diagram.png).

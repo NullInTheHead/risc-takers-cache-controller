@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Direct-Mapped Cache Controller — Hardware Simulation Waveform Viewer</title>
+  <style>
+    :root {
+      --bg-primary: #0b0f19;
+      --bg-secondary: #111827;
+      --bg-card: #1f2937;
+      --border-color: #374151;
+      --text-primary: #f9fafb;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      --clk-color: #38bdf8;
+      --sig-high: #10b981;
+      --sig-low: #4b5563;
+      --bus-border: #6366f1;
+      --bus-fill: #1e1b4b;
+      --bus-text: #e0e7ff;
+      --stall-color: #f59e0b;
+      --fsm-border: #d97706;
+      --fsm-fill: #451a03;
+      --fsm-text: #fef3c7;
+      --grid-line: #1e293b;
+      --cursor-color: #ec4899;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Header & Navigation */
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .project-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #38bdf8;
+      letter-spacing: -0.3px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      background: #1e3a8a;
+      color: #93c5fd;
+      border: 1px solid #2563eb;
+    }
+
+    /* Scenario Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tab-btn:hover {
+      background: #374151;
+      color: var(--text-primary);
+      border-color: #4b5563;
+    }
+    .tab-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #3b82f6;
+      box-shadow: 0 0 10px rgba(37, 99, 235, 0.4);
+    }
+
+    /* Info Bar */
+    .info-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 16px;
+    }
+    .info-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f3f4f6;
+    }
+    .info-desc {
+      color: var(--text-secondary);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    .metric-badge {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      text-align: right;
+    }
+
+    /* Toolbar */
+    .viewer-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1e293b;
+      padding: 6px 12px;
+      border-radius: 6px 6px 0 0;
+      border: 1px solid var(--border-color);
+      border-bottom: none;
+    }
+    .tool-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tool-btn {
+      background: #334155;
+      border: 1px solid #475569;
+      color: #e2e8f0;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tool-btn:hover { background: #475569; }
+
+    /* Canvas / Waveform Section */
+    .waveform-wrapper {
+      position: relative;
+      background: #030712;
+      border: 1px solid var(--border-color);
+      border-radius: 0 0 8px 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      user-select: none;
+    }
+    #waveCanvas {
+      display: block;
+      cursor: crosshair;
+    }
+
+    /* Bottom Info & Step Breakdown */
+    .timeline-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 8px;
+    }
+    .step-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px 12px;
+    }
+    .step-card.active-step {
+      border-color: #38bdf8;
+      background: #1e293b;
+    }
+    .step-cycle {
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-weight: 700;
+      font-size: 11px;
+      color: #38bdf8;
+    }
+    .step-text {
+      color: var(--text-secondary);
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    /* Live Cursor Value Inspector */
+    .inspector-panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+    }
+    .inspector-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .inspector-tag {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 10px;
+    }
+    .inspector-val {
+      font-weight: 700;
+      color: #f3f4f6;
+      background: #0f172a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #334155;
+    }
+    .inspector-val.hl-green { color: #34d399; border-color: #059669; }
+    .inspector-val.hl-orange { color: #fbbf24; border-color: #d97706; }
+    .inspector-val.hl-blue { color: #60a5fa; border-color: #2563eb; }
+
+    /* Help banner */
+    .eda-notice {
+      background: #172554;
+      border: 1px solid #1e40af;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: #bfdbfe;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .eda-notice code { background: #1e3a8a; padding: 1px 4px; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header Bar -->
+  <div class="header-bar">
+    <div class="project-title">
+      <span>Cache Controller Waveform Analyzer</span>
+      <span class="badge">Phase I RTL Model</span>
+    </div>
+
+    <!-- Scenario Buttons -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="btn-hit" onclick="switchScenario('hit')">
+        Read Hit (1 Cycle)
+      </button>
+      <button class="tab-btn" id="btn-miss" onclick="switchScenario('miss')">
+        Read Miss (17 Cycles)
+      </button>
+      <button class="tab-btn" id="btn-write_hit" onclick="switchScenario('write_hit')">
+        Write Hit (Write-Through)
+      </button>
+      <button class="tab-btn" id="btn-write_miss" onclick="switchScenario('write_miss')">
+        Write Miss (No-Allocate)
+      </button>
+      <button class="tab-btn" id="btn-conflict" onclick="switchScenario('conflict')">
+        Conflict Thrashing
+      </button>
+    </div>
+  </div>
+
+  <!-- Scenario Description Bar -->
+  <div class="info-card">
+    <div>
+      <div class="info-title" id="scen-title">Read Hit — Combinational Fast-Path</div>
+      <div class="info-desc" id="scen-desc">
+        Data and Tag RAMs read combinationally in IDLE. Valid bit is set and tag matches &rarr; cpu_ready asserts high immediately in the exact same cycle (0 stall cycles).
+      </div>
+    </div>
+    <div class="metric-badge" id="scen-metrics">
+      <div style="color: #34d399;">HIT LATENCY: 1 CYCLE</div>
+      <div style="color: #94a3b8; font-size: 10px; font-weight: normal; margin-top: 2px;">CPU Stall = 0 cycles</div>
+    </div>
+  </div>
+
+  <!-- Live Signal Value Inspector at Cursor -->
+  <div class="inspector-panel" id="inspector-bar">
+    <div class="inspector-item">
+      <span class="inspector-tag">Cycle:</span>
+      <span class="inspector-val hl-blue" id="ins-cycle">C1 (10-20ns)</span>
+    </div>
+    <div class="inspector-item">
+      <span class="inspector-tag">State:</span>
+      <span class="inspector-val hl-orange" id="ins-state">IDLE</span>
+    </div>
+    <div class="inspector-item">
+      <span class="inspector-tag">cpu_addr:</span>
+      <span class="inspector-val" id="ins-addr">0x00000044</span>
+    </div>
+    <div class="inspector-item">
+      <span class="inspector-tag">hit:</span>
+      <span class="inspector-val hl-green" id="ins-hit">1</span>
+    </div>
+    <div class="inspector-item">
+      <span class="inspector-tag">cpu_ready:</span>
+      <span class="inspector-val hl-green" id="ins-ready">1</span>
+    </div>
+    <div class="inspector-item">
+      <span class="inspector-tag">cpu_stall:</span>
+      <span class="inspector-val" id="ins-stall">0</span>
+    </div>
+    <div class="inspector-item">
+      <span class="inspector-tag">cpu_rdata:</span>
+      <span class="inspector-val hl-blue" id="ins-rdata">0x00000044</span>
+    </div>
+    <div class="inspector-item">
+      <span class="inspector-tag">mem_req:</span>
+      <span class="inspector-val" id="ins-memreq">0</span>
+    </div>
+  </div>
+
+  <!-- Waveform Canvas Wrapper -->
+  <div>
+    <div class="viewer-toolbar">
+      <div class="tool-group">
+        <span style="font-weight: 700; color: #94a3b8; font-size: 11px;">SCALE: 10 ns / cycle</span>
+        <button class="tool-btn" onclick="zoomIn()">Zoom In (+)</button>
+        <button class="tool-btn" onclick="zoomOut()">Zoom Out (-)</button>
+        <button class="tool-btn" onclick="zoomFit()">Fit</button>
+      </div>
+      <div class="tool-group">
+        <button class="tool-btn" onclick="prevCycle()">Prev Cycle</button>
+        <button class="tool-btn" onclick="nextCycle()">Next Cycle</button>
+        <button class="tool-btn" onclick="exportPNG()">Export Waveform PNG</button>
+      </div>
+    </div>
+    <div class="waveform-wrapper">
+      <canvas id="waveCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Step Breakdown Timeline Cards -->
+  <div class="timeline-steps" id="step-timeline">
+    <!-- Populated by JavaScript -->
+  </div>
+
+  <!-- Simulation Compilation Note -->
+  <div class="eda-notice">
+    <div>
+      <strong>Note on EDA Simulation:</strong> In EDA Playground, all 9 RTL modules (or <code>rtl/all_in_one_design.v</code>) must be placed in the design pane because <code>cache_top.v</code> instantiates the other 8 sub-modules.
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // =========================================================================
+  // WAVEFORM DATASETS -- EXACT HARDWARE TIMING SPECIFICATIONS
+  // =========================================================================
+
+  const SCENARIOS = {
+    // -----------------------------------------------------------------------
+    // SCENARIO 1: READ HIT (1 Clock Cycle Fast-Path)
+    // -----------------------------------------------------------------------
+    hit: {
+      name: "Read Hit — Fast Path (1 Clock Cycle)",
+      desc: "Storage RAMs read combinationally in IDLE. Tag matches valid line &rarr; cpu_ready asserts in the exact same cycle with zero stall penalty.",
+      badgeHtml: '<div style="color: #34d399;">HIT LATENCY: 1 CYCLE</div><div style="color: #94a3b8; font-size: 10px; font-weight: normal; margin-top: 2px;">CPU Stall = 0 cycles</div>',
+      numCycles: 5,
+      cycleNames: ["C0 (Rest)", "C1 (Hit)", "C2 (Done)", "C3 (Rest)", "C4 (Rest)"],
+      steps: [
+        { c: "Cycle 0 (0-10ns)", text: "IDLE state. cpu_req=0. Cache is ready for incoming requests." },
+        { c: "Cycle 1 (10-20ns)", text: "CPU requests read 0x00000044. Tag matches line 4 & valid=1. hit=1 combinational. cpu_ready=1 fires in same cycle." },
+        { c: "Cycle 2 (20-30ns)", text: "CPU samples rdata=0x00000044 and deasserts req. FSM remains in IDLE without stall." },
+        { c: "Performance", text: "AMAT impact: exactly 1 cycle. Theoretical maximum throughput achieved." }
+      ],
+      signals: [
+        { group: "CLOCK", name: "clk",         type: "clk",   data: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1] },
+        { group: "CLOCK", name: "rst",         type: "bit",   data: [0, 0, 0, 0, 0] },
+        { group: "CPU",   name: "cpu_req",     type: "bit",   data: [0, 1, 0, 0, 0] },
+        { group: "CPU",   name: "cpu_wr",      type: "bit",   data: [0, 0, 0, 0, 0] },
+        { group: "CPU",   name: "cpu_addr",    type: "bus",   data: ["--", "0x00000044", "--", "--", "--"] },
+        { group: "CPU",   name: "cpu_ready",   type: "bit",   data: [0, 1, 0, 0, 0], highlight: "green" },
+        { group: "CPU",   name: "cpu_stall",   type: "bit",   data: [0, 0, 0, 0, 0] },
+        { group: "CPU",   name: "cpu_rdata",   type: "bus",   data: ["--", "0x00000044", "--", "--", "--"], highlight: "blue" },
+        { group: "CACHE", name: "fsm_state",   type: "fsm",   data: ["IDLE", "IDLE", "IDLE", "IDLE", "IDLE"] },
+        { group: "CACHE", name: "dec_index",   type: "bus",   data: ["--", "0x04", "--", "--", "--"] },
+        { group: "CACHE", name: "dec_tag",     type: "bus",   data: ["--", "0x000001", "--", "--", "--"] },
+        { group: "CACHE", name: "rvalid",      type: "bit",   data: [1, 1, 1, 1, 1] },
+        { group: "CACHE", name: "hit",         type: "bit",   data: [0, 1, 0, 0, 0], highlight: "green" },
+        { group: "MEM",   name: "mem_req",     type: "bit",   data: [0, 0, 0, 0, 0] },
+        { group: "MEM",   name: "mem_ready",   type: "bit",   data: [0, 0, 0, 0, 0] }
+      ]
+    },
+
+    // -----------------------------------------------------------------------
+    // SCENARIO 2: READ MISS (17 Cycles Total / 16 Stall Cycles Refill)
+    // -----------------------------------------------------------------------
+    miss: {
+      name: "Read Miss — 4-Word DRAM Burst Refill Sequence",
+      desc: "Cold miss on line 4 (valid=0). FSM latches request, stalls CPU for 16 cycles, fetches 4-word burst from DRAM (13 cycles), writes line to Data & Tag RAM in UPDATE, and signals RESPOND.",
+      badgeHtml: '<div style="color: #fbbf24;">TOTAL LATENCY: 17 CYCLES</div><div style="color: #f87171; font-size: 10px; font-weight: normal; margin-top: 2px;">CPU Stall = 16 cycles</div>',
+      numCycles: 19,
+      cycleNames: [
+        "C0:IDLE", "C1:REQ", "C2:CMP", "C3:ALLOC", "C4:DRAM", "C5:DRAM", "C6:DRAM", "C7:DRAM",
+        "C8:DRAM", "C9:DRAM", "C10:DRAM", "C11:DRAM", "C12:W0", "C13:W1", "C14:W2", "C15:W3",
+        "C16:UPD", "C17:RESP", "C18:IDLE"
+      ],
+      steps: [
+        { c: "C1: IDLE (Miss)", text: "cpu_req=1, addr=0x00000040. valid=0 &rarr; hit=0. cpu_stall asserts immediately." },
+        { c: "C2: COMPARE_TAG", text: "Address latched into saved_addr. FSM transitions to ALLOCATE." },
+        { c: "C3-C12: First Word", text: "mem_req=1. DRAM counts 10 cycles for first-word latency (t_RCD + CL)." },
+        { c: "C13-C15: 4-Word Burst", text: "DRAM delivers 4 consecutive words at 1 word/cycle into refill buffer." },
+        { c: "C16: UPDATE", text: "Full 128-bit block written to Data RAM; Tag & Valid bit updated synchronously." },
+        { c: "C17: RESPOND", text: "cpu_ready=1 asserted. Word 0x00000040 delivered on cpu_rdata. cpu_stall drops." }
+      ],
+      signals: [
+        { group: "CLOCK", name: "clk",         type: "clk",   data: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1] },
+        { group: "CLOCK", name: "rst",         type: "bit",   data: Array(19).fill(0) },
+        // CPU
+        { group: "CPU",   name: "cpu_req",     type: "bit",   data: [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0] },
+        { group: "CPU",   name: "cpu_wr",      type: "bit",   data: Array(19).fill(0) },
+        { group: "CPU",   name: "cpu_addr",    type: "bus",   data: ["--"].concat(Array(17).fill("0x00000040")).concat(["--"]) },
+        { group: "CPU",   name: "cpu_stall",   type: "bit",   data: [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0], highlight: "orange" },
+        { group: "CPU",   name: "cpu_ready",   type: "bit",   data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0], highlight: "green" },
+        { group: "CPU",   name: "cpu_rdata",   type: "bus",   data: Array(17).fill("--").concat(["0x00000040", "--"]), highlight: "blue" },
+        // FSM & Cache
+        { group: "CACHE", name: "fsm_state",   type: "fsm",   data: [
+            "IDLE", "IDLE", "CMP", "ALLOC", "ALLOC", "ALLOC", "ALLOC", "ALLOC", "ALLOC", "ALLOC",
+            "ALLOC", "ALLOC", "ALLOC", "ALLOC", "ALLOC", "ALLOC", "UPDATE", "RESP", "IDLE"
+          ] },
+        { group: "CACHE", name: "rvalid",      type: "bit",   data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1] },
+        { group: "CACHE", name: "hit",         type: "bit",   data: Array(16).fill(0).concat([1, 1, 0]) },
+        { group: "CACHE", name: "data_we_line",type: "bit",   data: Array(16).fill(0).concat([1, 0, 0]) },
+        { group: "CACHE", name: "tag_we",      type: "bit",   data: Array(16).fill(0).concat([1, 0, 0]) },
+        { group: "CACHE", name: "valid_we",    type: "bit",   data: Array(16).fill(0).concat([1, 0, 0]) },
+        // Memory Interface
+        { group: "MEM",   name: "mem_req",     type: "bit",   data: [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0] },
+        { group: "MEM",   name: "mem_addr",    type: "bus",   data: ["--", "--"].concat(Array(14).fill("0x00000040")).concat(["--", "--", "--"]) },
+        { group: "MEM",   name: "mm_ready",    type: "bit",   data: Array(15).fill(0).concat([1, 0, 0, 0]), highlight: "green" },
+        { group: "MEM",   name: "refill_data", type: "bus",   data: Array(15).fill("--").concat(["128b_BLOCK", "128b_BLOCK", "--", "--"]) }
+      ]
+    },
+
+    // -----------------------------------------------------------------------
+    // SCENARIO 3: WRITE HIT (Write-Through Policy, 1 Cycle)
+    // -----------------------------------------------------------------------
+    write_hit: {
+      name: "Write Hit — Write-Through Policy (1 Clock Cycle)",
+      desc: "Line exists in cache (hit=1): data_we_word updates targeted 32-bit word in cache via read-modify-write while write is dispatched to main memory in parallel. Ready returned in 1 cycle.",
+      badgeHtml: '<div style="color: #34d399;">WRITE HIT: 1 CYCLE</div><div style="color: #60a5fa; font-size: 10px; font-weight: normal; margin-top: 2px;">Cache + DRAM Updated</div>',
+      numCycles: 5,
+      cycleNames: ["C0:IDLE", "C1:WRITE", "C2:DONE", "C3:REST", "C4:REST"],
+      steps: [
+        { c: "Cycle 0 (0-10ns)", text: "IDLE state. Waiting for store instruction." },
+        { c: "Cycle 1 (10-20ns)", text: "cpu_req=1, cpu_wr=1, addr=0x0040, wdata=0xCAFEBABE. hit=1 detected combinationally." },
+        { c: "Parallel Commit", text: "data_we_word=1 commits to cache line 4. mem_req=1 forwards write to main memory." },
+        { c: "Instant Response", text: "cpu_ready=1 asserted in same cycle. No dirty bit needed; cache and DRAM match." }
+      ],
+      signals: [
+        { group: "CLOCK", name: "clk",         type: "clk", data: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1] },
+        { group: "CPU",   name: "cpu_req",     type: "bit", data: [0, 1, 0, 0, 0] },
+        { group: "CPU",   name: "cpu_wr",      type: "bit", data: [0, 1, 0, 0, 0], highlight: "orange" },
+        { group: "CPU",   name: "cpu_addr",    type: "bus", data: ["--", "0x00000040", "--", "--", "--"] },
+        { group: "CPU",   name: "cpu_wdata",   type: "bus", data: ["--", "0xCAFEBABE", "--", "--", "--"], highlight: "blue" },
+        { group: "CPU",   name: "cpu_ready",   type: "bit", data: [0, 1, 0, 0, 0], highlight: "green" },
+        { group: "CACHE", name: "fsm_state",   type: "fsm", data: ["IDLE", "IDLE", "IDLE", "IDLE", "IDLE"] },
+        { group: "CACHE", name: "hit",         type: "bit", data: [0, 1, 0, 0, 0], highlight: "green" },
+        { group: "CACHE", name: "data_we_word",type: "bit", data: [0, 1, 0, 0, 0], highlight: "green" },
+        { group: "MEM",   name: "mem_req",     type: "bit", data: [0, 1, 0, 0, 0] },
+        { group: "MEM",   name: "mem_wr",      type: "bit", data: [0, 1, 0, 0, 0] },
+        { group: "MEM",   name: "mem_wdata",   type: "bus", data: ["--", "0xCAFEBABE", "--", "--", "--"] }
+      ]
+    },
+
+    // -----------------------------------------------------------------------
+    // SCENARIO 4: WRITE MISS (No-Write-Allocate Policy)
+    // -----------------------------------------------------------------------
+    write_miss: {
+      name: "Write Miss — No-Write-Allocate (Bypasses Cache)",
+      desc: "Write miss on uncached address: controller dispatches single 32-bit word directly to main memory without fetching the line into cache. Cache contents remain clean and unpolluted.",
+      badgeHtml: '<div style="color: #60a5fa;">NO-WRITE-ALLOCATE</div><div style="color: #94a3b8; font-size: 10px; font-weight: normal; margin-top: 2px;">Cache Untouched</div>',
+      numCycles: 8,
+      cycleNames: ["C0:IDLE", "C1:REQ", "C2:CMP", "C3:ALLOC", "C4:DRAM", "C5:READY", "C6:RESP", "C7:IDLE"],
+      steps: [
+        { c: "C1: Write Request", text: "cpu_req=1, cpu_wr=1, addr=0x1000, wdata=0xDEADBEEF. hit=0." },
+        { c: "C2: COMPARE_TAG", text: "saved_wr=1 latched. Next state is ALLOCATE (bypasses UPDATE)." },
+        { c: "C3-C4: Memory Write", text: "mem_req=1, mem_wr=1. Word forwarded to main memory directly." },
+        { c: "C5-C6: Completion", text: "mem_ready=1 &rarr; RESPOND asserts cpu_ready=1. Tag RAM & Data RAM are NEVER written." }
+      ],
+      signals: [
+        { group: "CLOCK", name: "clk",         type: "clk", data: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1] },
+        { group: "CPU",   name: "cpu_req",     type: "bit", data: [0, 1, 1, 1, 1, 1, 1, 0] },
+        { group: "CPU",   name: "cpu_wr",      type: "bit", data: [0, 1, 1, 1, 1, 1, 0, 0] },
+        { group: "CPU",   name: "cpu_addr",    type: "bus", data: ["--", "0x00001000", "0x00001000", "0x00001000", "0x00001000", "0x00001000", "--", "--"] },
+        { group: "CPU",   name: "cpu_stall",   type: "bit", data: [0, 1, 1, 1, 1, 1, 0, 0], highlight: "orange" },
+        { group: "CPU",   name: "cpu_ready",   type: "bit", data: [0, 0, 0, 0, 0, 0, 1, 0], highlight: "green" },
+        { group: "CACHE", name: "fsm_state",   type: "fsm", data: ["IDLE", "IDLE", "CMP", "ALLOC", "ALLOC", "ALLOC", "RESP", "IDLE"] },
+        { group: "CACHE", name: "hit",         type: "bit", data: [0, 0, 0, 0, 0, 0, 0, 0] },
+        { group: "CACHE", name: "data_we_line",type: "bit", data: [0, 0, 0, 0, 0, 0, 0, 0] },
+        { group: "CACHE", name: "tag_we",      type: "bit", data: [0, 0, 0, 0, 0, 0, 0, 0] },
+        { group: "MEM",   name: "mem_req",     type: "bit", data: [0, 0, 1, 1, 1, 1, 0, 0] },
+        { group: "MEM",   name: "mem_wr",      type: "bit", data: [0, 0, 1, 1, 1, 1, 0, 0] },
+        { group: "MEM",   name: "mem_ready",   type: "bit", data: [0, 0, 0, 0, 0, 1, 0, 0], highlight: "green" }
+      ]
+    },
+
+    // -----------------------------------------------------------------------
+    // SCENARIO 5: CONFLICT MISS (Ping-Pong Thrashing)
+    // -----------------------------------------------------------------------
+    conflict: {
+      name: "Conflict Miss — Ping-Pong Thrashing (Addresses 1 KB Apart)",
+      desc: "Address 0x00000440 and 0x00000040 share the EXACT SAME index (Line 4) but have different tags (0x01 vs 0x11). Each access evicts the other, driving the hit rate to 0.00%.",
+      badgeHtml: '<div style="color: #ef4444;">CONFLICT MISS: 0% HIT RATE</div><div style="color: #94a3b8; font-size: 10px; font-weight: normal; margin-top: 2px;">Ping-Pong Eviction</div>',
+      numCycles: 8,
+      cycleNames: ["C0:Cached", "C1:Req 0x440", "C2:Mismatch", "C3:ALLOC", "C4:Evict", "C5:UPD", "C6:RESP", "C7:IDLE"],
+      steps: [
+        { c: "Pre-state", text: "Line 4 holds tag 0x000001 (address 0x00000040) with valid=1." },
+        { c: "C1: Access 0x440", text: "CPU reads 0x00000440 (Index=4, Tag=0x000011). Stored tag is 0x000001." },
+        { c: "C2: Tag Mismatch", text: "valid=1 BUT stored_tag != dec_tag &rarr; hit=0. Conflict Miss detected." },
+        { c: "C3-C5: Evict & Overwrite", text: "New line refilled from DRAM. Old data evicted; tag RAM overwritten with 0x000011." },
+        { c: "C6: Pathology", text: "If CPU now accesses 0x0040 again, it misses again. Motivates 2-way set associativity in Phase II." }
+      ],
+      signals: [
+        { group: "CLOCK", name: "clk",         type: "clk", data: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1] },
+        { group: "CPU",   name: "cpu_req",     type: "bit", data: [0, 1, 1, 1, 1, 1, 1, 0] },
+        { group: "CPU",   name: "cpu_addr",    type: "bus", data: ["--", "0x00000440", "0x00000440", "0x00000440", "0x00000440", "0x00000440", "0x00000440", "--"] },
+        { group: "CPU",   name: "cpu_stall",   type: "bit", data: [0, 1, 1, 1, 1, 1, 0, 0], highlight: "orange" },
+        { group: "CPU",   name: "cpu_ready",   type: "bit", data: [0, 0, 0, 0, 0, 0, 1, 0], highlight: "green" },
+        { group: "CACHE", name: "fsm_state",   type: "fsm", data: ["IDLE", "IDLE", "CMP", "ALLOC", "ALLOC", "UPDATE", "RESP", "IDLE"] },
+        { group: "CACHE", name: "dec_index",   type: "bus", data: ["0x04", "0x04", "0x04", "0x04", "0x04", "0x04", "0x04", "0x04"] },
+        { group: "CACHE", name: "stored_tag",  type: "bus", data: ["0x000001", "0x000001", "0x000001", "0x000001", "0x000001", "0x000011", "0x000011", "0x000011"], highlight: "orange" },
+        { group: "CACHE", name: "dec_tag",     type: "bus", data: ["--", "0x000011", "0x000011", "0x000011", "0x000011", "0x000011", "--", "--"] },
+        { group: "CACHE", name: "rvalid",      type: "bit", data: [1, 1, 1, 1, 1, 1, 1, 1] },
+        { group: "CACHE", name: "hit",         type: "bit", data: [0, 0, 0, 0, 0, 1, 1, 0], highlight: "orange" },
+        { group: "CACHE", name: "tag_we",      type: "bit", data: [0, 0, 0, 0, 0, 1, 0, 0], highlight: "green" },
+        { group: "CACHE", name: "data_we_line",type: "bit", data: [0, 0, 0, 0, 0, 1, 0, 0], highlight: "green" }
+      ]
+    }
+  };
+
+  // State
+  let currentKey = 'hit';
+  let zoomLevel = 1.0;
+  let activeCursorCycle = 1;
+
+  const canvas = document.getElementById('waveCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // Switch scenario
+  function switchScenario(key) {
+    currentKey = key;
+    activeCursorCycle = 1;
+
+    // Update tab styles
+    Object.keys(SCENARIOS).forEach(k => {
+      const btn = document.getElementById('btn-' + k);
+      if (btn) {
+        if (k === key) btn.classList.add('active');
+        else btn.classList.remove('active');
+      }
+    });
+
+    const scen = SCENARIOS[key];
+    document.getElementById('scen-title').innerText = scen.name;
+    document.getElementById('scen-desc').innerHTML = scen.desc;
+    document.getElementById('scen-metrics').innerHTML = scen.badgeHtml;
+
+    // Render timeline steps
+    const stepContainer = document.getElementById('step-timeline');
+    stepContainer.innerHTML = scen.steps.map((st, i) => `
+      <div class="step-card ${i === 1 ? 'active-step' : ''}">
+        <div class="step-cycle">${st.c}</div>
+        <div class="step-text">${st.text}</div>
+      </div>
+    `).join('');
+
+    updateInspector(activeCursorCycle);
+    renderWaveform();
+  }
+
+  // Update Inspector Panel at top
+  function updateInspector(cycleIdx) {
+    const scen = SCENARIOS[currentKey];
+    if (cycleIdx < 0 || cycleIdx >= scen.numCycles) return;
+
+    const cName = scen.cycleNames ? scen.cycleNames[cycleIdx] : `C${cycleIdx}`;
+    document.getElementById('ins-cycle').innerText = `${cName} (${cycleIdx*10}-${(cycleIdx+1)*10}ns)`;
+
+    function getVal(sigName) {
+      const sig = scen.signals.find(s => s.name === sigName);
+      if (!sig) return '--';
+      return sig.data[cycleIdx] !== undefined ? sig.data[cycleIdx] : '--';
+    }
+
+    document.getElementById('ins-state').innerText = getVal('fsm_state');
+    document.getElementById('ins-addr').innerText = getVal('cpu_addr');
+    document.getElementById('ins-hit').innerText = getVal('hit');
+    document.getElementById('ins-ready').innerText = getVal('cpu_ready');
+    document.getElementById('ins-stall').innerText = getVal('cpu_stall');
+    document.getElementById('ins-rdata').innerText = getVal('cpu_rdata');
+    document.getElementById('ins-memreq').innerText = getVal('mem_req');
+  }
+
+  // Render Canvas Waveforms
+  function renderWaveform() {
+    const scen = SCENARIOS[currentKey];
+    const sigs = scen.signals;
+    const numCycles = scen.numCycles;
+
+    // Dimensions
+    const dpr = window.devicePixelRatio || 1;
+    const rowHeight = 28;
+    const labelWidth = 140;
+    const headerHeight = 32;
+    const totalHeight = headerHeight + (sigs.length * rowHeight) + 16;
+
+    // Compute width based on zoom
+    const containerWidth = canvas.parentElement.clientWidth || 1000;
+    const baseCycleWidth = Math.max(50, (containerWidth - labelWidth - 40) / numCycles);
+    const cycleWidth = baseCycleWidth * zoomLevel;
+    const totalWidth = Math.max(containerWidth, labelWidth + (numCycles * cycleWidth) + 40);
+
+    canvas.width = totalWidth * dpr;
+    canvas.height = totalHeight * dpr;
+    canvas.style.width = totalWidth + 'px';
+    canvas.style.height = totalHeight + 'px';
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+
+    // Background
+    ctx.fillStyle = "#030712";
+    ctx.fillRect(0, 0, totalWidth, totalHeight);
+
+    // Label Column Background
+    ctx.fillStyle = "#0b0f19";
+    ctx.fillRect(0, 0, labelWidth, totalHeight);
+    ctx.strokeStyle = "#1e293b";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(labelWidth, 0);
+    ctx.lineTo(labelWidth, totalHeight);
+    ctx.stroke();
+
+    // Time Ruler / Cycle Header
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(labelWidth, 0, totalWidth - labelWidth, headerHeight);
+    ctx.strokeStyle = "#334155";
+    ctx.beginPath();
+    ctx.moveTo(0, headerHeight);
+    ctx.lineTo(totalWidth, headerHeight);
+    ctx.stroke();
+
+    // Draw Cycle Columns & Grid Lines
+    for (let c = 0; c <= numCycles; c++) {
+      const x = labelWidth + c * cycleWidth;
+
+      // Vertical Grid line
+      ctx.strokeStyle = (c === activeCursorCycle || c === activeCursorCycle + 1) ? "#334155" : "#111827";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, headerHeight);
+      ctx.lineTo(x, totalHeight);
+      ctx.stroke();
+
+      // Cycle Header Label
+      if (c < numCycles) {
+        ctx.fillStyle = (c === activeCursorCycle) ? "#38bdf8" : "#94a3b8";
+        ctx.font = (c === activeCursorCycle) ? "bold 11px monospace" : "10px monospace";
+        const cLabel = scen.cycleNames ? scen.cycleNames[c] : `C${c}`;
+        ctx.fillText(cLabel, x + 6, 14);
+
+        ctx.fillStyle = "#64748b";
+        ctx.font = "9px monospace";
+        ctx.fillText(`${c * 10}ns`, x + 6, 26);
+      }
+    }
+
+    // Active Cursor Highlight Column
+    if (activeCursorCycle >= 0 && activeCursorCycle < numCycles) {
+      const curX = labelWidth + activeCursorCycle * cycleWidth;
+      ctx.fillStyle = "rgba(56, 189, 248, 0.08)";
+      ctx.fillRect(curX, headerHeight, cycleWidth, totalHeight - headerHeight);
+
+      ctx.strokeStyle = "#ec4899";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(curX, headerHeight);
+      ctx.lineTo(curX, totalHeight);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Draw Signals
+    sigs.forEach((sig, idx) => {
+      const yTop = headerHeight + idx * rowHeight + 4;
+      const yBottom = yTop + rowHeight - 8;
+      const yMid = (yTop + yBottom) / 2;
+
+      // Row separator
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, yTop + rowHeight - 4);
+      ctx.lineTo(totalWidth, yTop + rowHeight - 4);
+      ctx.stroke();
+
+      // Signal Label
+      ctx.fillStyle = "#e2e8f0";
+      ctx.font = "bold 11px ui-monospace, SFMono-Regular, monospace";
+      ctx.fillText(sig.name, 12, yMid + 4);
+
+      // Signal Group Dot
+      const groupColors = { CLOCK: "#38bdf8", CPU: "#10b981", CACHE: "#f59e0b", MEM: "#8b5cf6" };
+      ctx.fillStyle = groupColors[sig.group] || "#6b7280";
+      ctx.beginPath();
+      ctx.arc(6, yMid, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw Signal Trace
+      if (sig.type === 'clk') {
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        const halfStep = cycleWidth / 2;
+        for (let c = 0; c < numCycles; c++) {
+          const x0 = labelWidth + c * cycleWidth;
+          ctx.moveTo(x0, yBottom);
+          ctx.lineTo(x0, yTop);
+          ctx.lineTo(x0 + halfStep, yTop);
+          ctx.lineTo(x0 + halfStep, yBottom);
+          ctx.lineTo(x0 + cycleWidth, yBottom);
+        }
+        ctx.stroke();
+
+      } else if (sig.type === 'bit') {
+        ctx.lineWidth = 1.8;
+        for (let c = 0; c < numCycles; c++) {
+          const x0 = labelWidth + c * cycleWidth;
+          const x1 = x0 + cycleWidth;
+          const val = sig.data[c];
+
+          const isHigh = (val === 1 || val === "1");
+          ctx.strokeStyle = isHigh ? (sig.highlight === "orange" ? "#fbbf24" : "#10b981") : "#4b5563";
+
+          ctx.beginPath();
+          if (isHigh) {
+            ctx.moveTo(x0, yTop);
+            ctx.lineTo(x1, yTop);
+            if (c > 0 && sig.data[c-1] !== 1 && sig.data[c-1] !== "1") {
+              ctx.moveTo(x0, yBottom);
+              ctx.lineTo(x0, yTop);
+            }
+          } else {
+            ctx.moveTo(x0, yBottom);
+            ctx.lineTo(x1, yBottom);
+            if (c > 0 && (sig.data[c-1] === 1 || sig.data[c-1] === "1")) {
+              ctx.moveTo(x0, yTop);
+              ctx.lineTo(x0, yBottom);
+            }
+          }
+          ctx.stroke();
+        }
+
+      } else {
+        // Multi-bit Bus or FSM State
+        for (let c = 0; c < numCycles; c++) {
+          const x0 = labelWidth + c * cycleWidth;
+          const x1 = x0 + cycleWidth;
+          const val = sig.data[c] || "--";
+
+          if (val === "--") {
+            ctx.strokeStyle = "#374151";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x0, yMid);
+            ctx.lineTo(x1, yMid);
+            ctx.stroke();
+          } else {
+            const isFsm = (sig.type === 'fsm');
+            ctx.fillStyle = isFsm ? "#451a03" : (sig.highlight === "blue" ? "#1e3a8a" : "#1e1b4b");
+            ctx.strokeStyle = isFsm ? "#f59e0b" : (sig.highlight === "blue" ? "#3b82f6" : "#6366f1");
+            ctx.lineWidth = 1.2;
+
+            ctx.beginPath();
+            ctx.moveTo(x0 + 3, yMid);
+            ctx.lineTo(x0 + 7, yTop);
+            ctx.lineTo(x1 - 7, yTop);
+            ctx.lineTo(x1 - 3, yMid);
+            ctx.lineTo(x1 - 7, yBottom);
+            ctx.lineTo(x0 + 7, yBottom);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = isFsm ? "#fef3c7" : "#e0e7ff";
+            ctx.font = "bold 10px ui-monospace, SFMono-Regular, monospace";
+            const textWidth = ctx.measureText(val).width;
+            if (textWidth < cycleWidth - 10) {
+              ctx.fillText(val, x0 + (cycleWidth - textWidth) / 2, yMid + 3.5);
+            } else {
+              ctx.fillText(val.substring(0, 5) + '..', x0 + 8, yMid + 3.5);
+            }
+          }
+        }
+      }
+    });
+
+    ctx.restore();
+  }
+
+  // Mouse Interaction: Hover Crosshair & Inspector
+  canvas.addEventListener('mousemove', function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const labelWidth = 140;
+
+    if (mouseX >= labelWidth) {
+      const scen = SCENARIOS[currentKey];
+      const containerWidth = canvas.parentElement.clientWidth || 1000;
+      const baseCycleWidth = Math.max(50, (containerWidth - labelWidth - 40) / scen.numCycles);
+      const cycleWidth = baseCycleWidth * zoomLevel;
+
+      const hoveredCycle = Math.floor((mouseX - labelWidth) / cycleWidth);
+      if (hoveredCycle >= 0 && hoveredCycle < scen.numCycles) {
+        if (hoveredCycle !== activeCursorCycle) {
+          activeCursorCycle = hoveredCycle;
+          updateInspector(activeCursorCycle);
+          renderWaveform();
+        }
+      }
+    }
+  });
+
+  // Zoom and Pan Controls
+  function zoomIn() {
+    if (zoomLevel < 3.0) {
+      zoomLevel += 0.25;
+      renderWaveform();
+    }
+  }
+
+  function zoomOut() {
+    if (zoomLevel > 0.5) {
+      zoomLevel -= 0.25;
+      renderWaveform();
+    }
+  }
+
+  function zoomFit() {
+    zoomLevel = 1.0;
+    renderWaveform();
+  }
+
+  function nextCycle() {
+    const scen = SCENARIOS[currentKey];
+    if (activeCursorCycle < scen.numCycles - 1) {
+      activeCursorCycle++;
+      updateInspector(activeCursorCycle);
+      renderWaveform();
+    }
+  }
+
+  function prevCycle() {
+    if (activeCursorCycle > 0) {
+      activeCursorCycle--;
+      updateInspector(activeCursorCycle);
+      renderWaveform();
+    }
+  }
+
+  // Export Waveform as High-Resolution PNG
+  function exportPNG() {
+    const link = document.createElement('a');
+    link.download = `cache_waveform_${currentKey}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+
+  // Init
+  window.addEventListener('resize', renderWaveform);
+  switchScenario('hit');
+</script>
+
+</body>
+</html>
