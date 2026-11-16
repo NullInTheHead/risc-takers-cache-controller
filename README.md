@@ -49,6 +49,7 @@ An IEEE 1364-compliant, fully parameterised direct-mapped cache controller in sy
 risc-takers-cache-controller/
 ├── rtl/                        # Synthesizable RTL and memory models
 │   ├── address_decoder.v       # Address bit splitter (Tag / Index / Word / Byte)
+│   ├── all_in_one_design.v     # Bundled single-file RTL for online EDA simulation
 │   ├── cache_controller_fsm.v  # 5-state synchronous controller FSM
 │   ├── cache_top.v             # Full top-level integration wrapper
 │   ├── data_ram.v              # 64 x 128-bit data array (read-modify-write)
@@ -83,10 +84,11 @@ risc-takers-cache-controller/
 ├── results/                    # Benchmark run outputs and AMAT tables
 │   ├── ref_*.log               # Per-access hit/miss reference logs
 │   ├── ref_*_summary.txt       # Benchmark summary statistics
-│   └── amat_summary.txt        # Formatted AMAT LaTeX rows
+│   └── amat_summary.txt        # Performance evaluation and AMAT summary table
 ├── synth/                      # Synthesis scripts
 │   └── m1_storage_check.ys     # Yosys gate-level sanity check
 ├── docs/                       # Project documentation and manuscripts
+│   ├── waveform_viewer.html    # Interactive cycle-accurate waveform analyzer
 │   ├── report.pdf              # Compiled 6-page IEEE conference report
 │   ├── report.tex              # Master LaTeX IEEEtran source
 │   ├── interfaces.md           # Frozen inter-module signal specification
@@ -160,6 +162,8 @@ $$\text{AMAT} = t_{\text{hit}} + \text{Miss Rate} \times t_{\text{penalty}} = 1 
 
 ## 6. Project Documentation & Deliverables
 
+* **Prototype Video Demonstration:** [Watch Video Demo (Google Drive)](https://drive.google.com/file/d/1ceX4_QyjNYQM-hh1mGNlkBPhGlVPJafL/view?usp=sharing)
+* **Interactive Waveform Analyzer:** Open [`docs/waveform_viewer.html`](docs/waveform_viewer.html) in any browser to inspect cycle-accurate signal waveforms across all 5 operational scenarios (Read Hit, Read Miss Burst, Write Hit, Write Miss, and Conflict Thrashing).
 * **IEEE Conference Report:** Full 6-page manuscript formatted with `IEEEtran` available at [`docs/report.pdf`](docs/report.pdf) (LaTeX source: [`docs/report.tex`](docs/report.tex)).
 * **System Architecture Diagram:** [`docs/figures/block_diagram.pdf`](docs/figures/block_diagram.pdf).
 * **FSM State Diagram:** [`docs/figures/fsm_diagram.png`](docs/figures/fsm_diagram.png).
