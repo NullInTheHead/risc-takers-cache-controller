@@ -10,7 +10,7 @@ RTL     = rtl/address_decoder.v rtl/data_ram.v rtl/tag_ram.v rtl/valid_ram.v \
           rtl/tag_comparator.v rtl/cache_controller_fsm.v \
           rtl/main_memory.v rtl/mem_interface.v rtl/cache_top.v
 
-.PHONY: traces ref-model sim m2-verify clean
+.PHONY: traces ref-model sim m2-verify m3-verify clean
 
 # Generate all trace files
 traces: $(TRACES)
@@ -31,6 +31,10 @@ m2-verify:
 	$(PYTHON) scripts/verify_m2.py
 	$(PYTHON) scripts/test_m1_m2_integration.py
 	$(PYTHON) scripts/verify_all_traces.py
+
+# Member 3 standalone verification suite
+m3-verify:
+	bash tb/run_m3_tests.sh
 
 # Simulate full system (M3 integrated) — override TRACE_FILE on command line
 sim: traces
