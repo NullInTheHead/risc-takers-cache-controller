@@ -3,7 +3,7 @@
 gen_traces.py – Trace generator for a direct-mapped cache controller.
 
 Generates four .mem trace files suitable for $readmemh in Verilog testbenches.
-Each line has the format:  RW ADDR
+Each line is a single 33-bit hex value: { rw[32], addr[31:0] }
   - RW   : 0 = read, 1 = write
   - ADDR : 32-bit hex address (word-aligned, addr[1:0] == 00)
 
@@ -38,10 +38,11 @@ def _word_aligned(addr):
 
 
 def _fmt_line(rw, addr):
-    """Format one trace line: 'RW ADDR' in hex."""
+    """Format one trace entry as a single 33-bit hex value: {rw[32], addr[31:0]}."""
     assert rw in (0, 1), f"rw must be 0 or 1, got {rw}"
     assert _word_aligned(addr), f"address 0x{addr:08X} is not word-aligned"
-    return f"{rw} {addr:08X}"
+    val = (rw << 32) | (addr & 0xFFFFFFFF)
+    return f"{val:09X}"
 
 
 def _write_trace(path, lines, label, expected_hit_rate):

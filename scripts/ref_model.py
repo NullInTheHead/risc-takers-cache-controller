@@ -166,13 +166,13 @@ def read_trace(path: str):
     """
     Yield ``(rw, addr)`` tuples from a ``.mem`` trace file.
 
-    Expected format per line::
+    Supports two formats:
 
-        RW ADDR
+    1. Single 33-bit hex value per line: ``{rw[32], addr[31:0]}``
+       (e.g. ``000000010`` for read addr=0x10, ``100000010`` for write addr=0x10)
+    2. Legacy two-column format: ``RW ADDR``
 
-    where *RW* is ``0`` (read) or ``1`` (write) and *ADDR* is a
-    hexadecimal number (``0x`` prefix optional).  Blank lines and lines
-    starting with ``#`` or ``//`` are ignored.
+    Blank lines and lines starting with ``#`` or ``//`` are ignored.
     """
     with open(path, "r") as fh:
         for line in fh:
@@ -180,10 +180,15 @@ def read_trace(path: str):
             if not line or line.startswith("#") or line.startswith("//"):
                 continue
             parts = line.split()
-            if len(parts) < 2:
-                continue
-            rw   = int(parts[0])
-            addr = int(parts[1], 16)
+            if len(parts) >= 2:
+                # Legacy format: RW ADDR
+                rw   = int(parts[0])
+                addr = int(parts[1], 16)
+            else:
+                # Single 33-bit hex value: {rw[32], addr[31:0]}
+                val  = int(parts[0], 16)
+                rw   = (val >> 32) & 1
+                addr = val & 0xFFFFFFFF
             yield rw, addr
 
 
