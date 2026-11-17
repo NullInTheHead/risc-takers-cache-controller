@@ -5,7 +5,18 @@ An IEEE 1364-compliant, fully parameterised direct-mapped cache controller in sy
 
 ---
 
-## 1. Architectural Specifications
+## 1. Project Documentation & Deliverables
+
+* **Prototype Video Demonstration:** [Watch Video Demo (Google Drive)](https://drive.google.com/file/d/1ceX4_QyjNYQM-hh1mGNlkBPhGlVPJafL/view?usp=sharing)
+* **Interactive Waveform Analyzer (Live Web Demo):** [Launch Live Waveform Viewer](https://nullinthehead.github.io/risc-takers-cache-controller/) (or open [`docs/waveform_viewer.html`](docs/waveform_viewer.html) locally) to inspect cycle-accurate signal waveforms across all 5 operational scenarios (Read Hit, Read Miss Burst, Write Hit, Write Miss, and Conflict Thrashing).
+* **IEEE Conference Report:** Full 6-page manuscript formatted with `IEEEtran` available at [`docs/report.pdf`](docs/report.pdf) (LaTeX source: [`docs/report.tex`](docs/report.tex)).
+* **System Architecture Diagram:** [`docs/figures/block_diagram.pdf`](docs/figures/block_diagram.pdf).
+* **FSM State Diagram:** [`docs/figures/fsm_diagram.png`](docs/figures/fsm_diagram.png).
+* **Signal Interface Specification:** [`docs/interfaces.md`](docs/interfaces.md).
+
+---
+
+## 2. Architectural Specifications
 
 | Parameter | Value | Description |
 | :--- | :---: | :--- |
@@ -31,7 +42,7 @@ An IEEE 1364-compliant, fully parameterised direct-mapped cache controller in sy
 
 ---
 
-## 2. Team Members & Roles
+## 3. Team Members & Roles
 
 | Member | Role | Key Deliverables |
 | :--- | :--- | :--- |
@@ -43,7 +54,7 @@ An IEEE 1364-compliant, fully parameterised direct-mapped cache controller in sy
 
 ---
 
-## 3. Repository Structure
+## 4. Repository Structure
 
 ```text
 risc-takers-cache-controller/
@@ -100,7 +111,7 @@ risc-takers-cache-controller/
 
 ---
 
-## 4. How to Run
+## 5. How to Run
 
 ### Prerequisites
 * Python 3.8+ (no external dependencies required)
@@ -144,7 +155,7 @@ make sim
 
 ---
 
-## 5. Verification & AMAT Evaluation Results
+## 6. Verification & AMAT Evaluation Results
 
 All 924 benchmark memory accesses achieve a **100% bit-accurate match** between the RTL behavioural model and the Python reference model.
 
@@ -157,14 +168,3 @@ $$\text{AMAT} = t_{\text{hit}} + \text{Miss Rate} \times t_{\text{penalty}} = 1 
 | **Random** | 200 | 0 | 200 | **0.00%** | 100.00% | **17.00** | Working set far exceeds 1 KB; capacity misses |
 | **Conflict** | 200 | 0 | 200 | **0.00%** | 100.00% | **17.00** | Stride = 1 KB (ping-pong index collision thrashing) |
 | **Total / Avg** | **924** | **455** | **469** | **49.24%** | **50.76%** | — | **All 924 accesses verified 100% bit-accurate** |
-
----
-
-## 6. Project Documentation & Deliverables
-
-* **Prototype Video Demonstration:** [Watch Video Demo (Google Drive)](https://drive.google.com/file/d/1ceX4_QyjNYQM-hh1mGNlkBPhGlVPJafL/view?usp=sharing)
-* **Interactive Waveform Analyzer (Live Web Demo):** [Launch Live Waveform Viewer](https://nullinthehead.github.io/risc-takers-cache-controller/) (or open [`docs/waveform_viewer.html`](docs/waveform_viewer.html) locally) to inspect cycle-accurate signal waveforms across all 5 operational scenarios (Read Hit, Read Miss Burst, Write Hit, Write Miss, and Conflict Thrashing).
-* **IEEE Conference Report:** Full 6-page manuscript formatted with `IEEEtran` available at [`docs/report.pdf`](docs/report.pdf) (LaTeX source: [`docs/report.tex`](docs/report.tex)).
-* **System Architecture Diagram:** [`docs/figures/block_diagram.pdf`](docs/figures/block_diagram.pdf).
-* **FSM State Diagram:** [`docs/figures/fsm_diagram.png`](docs/figures/fsm_diagram.png).
-* **Signal Interface Specification:** [`docs/interfaces.md`](docs/interfaces.md).
